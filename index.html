@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Sri Chit Funds — Management Software</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f1b2d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chit Funds">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
+<style>
+:root{
+  --navy:#0f1b2d;
+  --navy-2:#152238;
+  --navy-3:#1c2c47;
+  --gold:#c9982f;
+  --gold-2:#e0b654;
+  --paper:#f6f4ef;
+  --card:#ffffff;
+  --ink:#1c2230;
+  --muted:#6b7280;
+  --line:#e7e3d8;
+  --green:#1f8a5f;
+  --red:#c1443a;
+  --amber:#b8842a;
+  --radius:10px;
+  --shadow:0 2px 10px rgba(15,27,45,.08);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  display:flex;
+  min-height:100vh;
+  font-size:14px;
+}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#c9c2af;border-radius:4px;}
+
+/* ---------- Sidebar ---------- */
+#sidebar{
+  width:220px;min-width:220px;
+  background:linear-gradient(180deg,var(--navy) 0%,var(--navy-2) 100%);
+  color:#dbe4f0;
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.08);
+}
+.brand .mark{
+  width:38px;height:38px;border-radius:9px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-2));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;color:var(--navy);font-size:16px;flex-shrink:0;
+}
+.brand div.name{font-weight:700;font-size:15px;color:#fff;line-height:1.15;}
+.brand div.sub{font-size:10.5px;color:#9fb0c9;letter-spacing:.4px;}
+
+nav{flex:1;padding:10px;overflow-y:auto;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:8px;margin-bottom:3px;
+  color:#c3cee0;cursor:pointer;font-size:13.5px;font-weight:500;
+  transition:.15s;user-select:none;
+}
+.nav-item .ic{width:18px;text-align:center;font-size:15px;}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.nav-item.active{background:var(--gold);color:var(--navy);font-weight:700;}
+.nav-foot{padding:12px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#8092ab;}
+
+/* ---------- Main ---------- */
+#main{flex:1;min-width:0;display:flex;flex-direction:column;}
+#topbar{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:5;
+}
+#topbar h1{font-size:19px;margin:0;color:var(--navy);}
+#topbar .meta{font-size:12px;color:var(--muted);}
+#content{padding:22px;flex:1;}
+
+/* ---------- Cards / Grid ---------- */
+.grid{display:grid;gap:16px;}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:1000px){.grid.cols-4{grid-template-columns:repeat(2,1fr);}.grid.cols-3{grid-template-columns:repeat(2,1fr);}}
+
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;box-shadow:var(--shadow);
+}
+.stat{position:relative;overflow:hidden;}
+.stat .label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+.stat .value{font-size:26px;font-weight:800;margin-top:6px;color:var(--navy);}
+.stat.gold .value{color:var(--amber);}
+.stat.red .value{color:var(--red);}
+.stat.green .value{color:var(--green);}
+.stat .bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.stat.b1 .bar{background:var(--navy);}
+.stat.b2 .bar{background:var(--gold);}
+.stat.b3 .bar{background:var(--green);}
+.stat.b4 .bar{background:var(--red);}
+
+h2.section-title{font-size:15px;color:var(--navy);margin:0 0 14px 0;font-weight:700;display:flex;align-items:center;gap:8px;}
+h2.section-title .te{font-size:11.5px;color:var(--muted);font-weight:400;}
+
+/* ---------- Forms ---------- */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:800px){.form-grid{grid-template-columns:1fr;}}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:12.5px;font-weight:600;color:#3a4257;}
+.field label .te{font-weight:400;color:var(--muted);font-size:11px;}
+input,select,textarea{
+  padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+  font-size:13.5px;background:#fcfbf8;color:var(--ink);font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);background:#fff;}
+.actions-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+
+button{
+  border:none;border-radius:7px;padding:10px 18px;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:.15s;
+}
+.btn-primary{background:var(--green);color:#fff;}
+.btn-primary:hover{background:#186f4c;}
+.btn-secondary{background:var(--navy);color:#fff;}
+.btn-secondary:hover{background:var(--navy-2);}
+.btn-ghost{background:#eceae2;color:#3a4257;}
+.btn-ghost:hover{background:#e2dfd3;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#a63a30;}
+.btn-gold{background:var(--gold);color:var(--navy);}
+.btn-gold:hover{background:var(--gold-2);}
+button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ---------- Tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--muted);border-bottom:2px solid var(--line);padding:9px 10px;font-weight:700;
+}
+td{padding:10px;border-bottom:1px solid #f0eee6;}
+tr:hover td{background:#fbfaf6;}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.pill.paid{background:#dff4e8;color:var(--green);}
+.pill.pending{background:#fdeadd;color:var(--red);}
+.pill.active{background:#e4edfb;color:#2557a7;}
+.pill.closed{background:#e9e6df;color:#6b7280;}
+.row-actions{display:flex;gap:6px;}
+.icon-btn{background:none;border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;}
+.icon-btn:hover{background:#f2f0e8;}
+.icon-btn.del{color:var(--red);border-color:#f0d2ce;}
+.icon-btn.del:hover{background:#fdecea;}
+
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty .big{font-size:34px;margin-bottom:8px;}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.search-box{padding:9px 12px;border:1px solid var(--line);border-radius:7px;min-width:220px;background:#fcfbf8;}
+
+.calc-box{
+  background:#fbf6ea;border:1px solid #ecdcb0;border-radius:8px;padding:14px 16px;margin-top:6px;
+}
+.calc-box .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;}
+.calc-box .row.total{border-top:1px dashed #d9c48c;margin-top:6px;padding-top:8px;font-weight:800;color:var(--navy);}
+
+/* ---------- Receipt ---------- */
+#receiptPreview{
+  max-width:440px;margin:0 auto;background:#fff;border:1px solid #dcd6c4;
+  padding:24px;border-radius:6px;
+}
+#receiptPreview .rhead{text-align:center;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:10px;}
+#receiptPreview .rhead h3{margin:0;color:var(--navy);font-size:18px;letter-spacing:.5px;}
+#receiptPreview .rhead p{margin:2px 0;font-size:11px;color:var(--muted);}
+#receiptPreview .rtitle{background:var(--navy);color:#fff;text-align:center;padding:6px;font-weight:700;letter-spacing:1px;font-size:12.5px;margin:10px 0;border-radius:3px;}
+#receiptPreview .rline{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dotted #e5e0d0;}
+#receiptPreview .rsign{text-align:right;margin-top:30px;font-size:12px;font-style:italic;color:var(--muted);}
+@media print{
+  body *{visibility:hidden;}
+  #receiptPreview,#receiptPreview *{visibility:visible;}
+  #receiptPreview{position:absolute;top:0;left:0;width:100%;border:none;}
+}
+
+.toast{
+  position:fixed;bottom:22px;right:22px;background:var(--navy);color:#fff;padding:12px 18px;
+  border-radius:8px;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:999;
+  opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(15,27,45,.5);display:none;align-items:center;justify-content:center;z-index:100;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:#fff;border-radius:10px;padding:22px;max-width:400px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.25);}
+.modal-box h3{margin-top:0;color:var(--navy);}
+.modal-box .actions-row{justify-content:flex-end;}
+
+.view{display:none;}
+.view.active{display:block;}
+
+#hamb{display:none;background:none;border:none;font-size:22px;color:var(--navy);cursor:pointer;padding:4px 8px;}
+@media(max-width:880px){
+  #sidebar{position:fixed;left:-240px;z-index:50;transition:.2s;box-shadow:4px 0 20px rgba(0,0,0,.2);}
+  #sidebar.open{left:0;}
+  #hamb{display:block;}
+  .grid.cols-4,.grid.cols-3,.grid.cols-2{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="brand">
+    <div class="mark">₹</div>
+    <div>
+      <div class="name">SRI CHIT FUNDS</div>
+      <div class="sub">MANAGEMENT SOFTWARE</div>
+    </div>
+  </div>
+  <nav id="navList"></nav>
+  <div class="nav-foot">v1.0 · Offline Edition<br>All data stored on this device</div>
+</div>
+
+<div id="main">
+  <div id="topbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="hamb">☰</button>
+      <h1 id="pageTitle">Dashboard</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button id="installBtn" onclick="installApp()" class="btn-gold" style="display:none;align-items:center;gap:6px;padding:8px 14px;font-size:12.5px;">⬇ Install App</button>
+      <div class="meta" id="dateNow"></div>
+    </div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3>Confirm</h3>
+    <p id="confirmMsg">Are you sure?</p>
+    <div class="actions-row">
+      <button class="btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirmYes">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   SRI CHIT FUNDS — Offline Management Software
+   All data persisted to localStorage. No server / internet needed.
+========================================================= */
+
+const DB_KEY = 'chitSoftwareDB_v1';
+const todayStr = ()=> new Date().toISOString().slice(0,10);
+
+function loadDB(){
+  let raw = localStorage.getItem(DB_KEY);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return {
+    settings:{ orgName:'Sri Chit Funds', address:'# 12-27-28, Main Road, Kurnool - 518001', phone:'9876543210', nextReceiptNo: 1001 },
+    members:[], groups:[], collections:[], auctions:[], receipts:[]
+  };
+}
+let DB = loadDB();
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+
+function uid(prefix){ return prefix + Math.random().toString(36).slice(2,8).toUpperCase(); }
+function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN'); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+let _confirmCb = null;
+function askConfirm(msg, cb){
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmModal').classList.add('show');
+  _confirmCb = cb;
+}
+function closeConfirm(){ document.getElementById('confirmModal').classList.remove('show'); _confirmCb=null; }
+document.getElementById('confirmYes').onclick = ()=>{ if(_confirmCb) _confirmCb(); closeConfirm(); };
+
+/* ---------------- Navigation ---------------- */
+const NAV = [
+  {id:'dashboard', ic:'🏠', label:'Dashboard', te:'డాష్‌బోర్డ్'},
+  {id:'members', ic:'👥', label:'Members', te:'సభ్యులు'},
+  {id:'groups', ic:'🗂️', label:'Groups', te:'గ్రూపులు'},
+  {id:'collections', ic:'💵', label:'Collections', te:'వసూళ్ళు'},
+  {id:'auctions', ic:'🔨', label:'Auction', te:'వేలం'},
+  {id:'receipts', ic:'🧾', label:'Receipts', te:'రసీదులు'},
+  {id:'reports', ic:'📊', label:'Reports', te:'నివేదికలు'},
+  {id:'settings', ic:'⚙️', label:'Settings', te:'సెట్టింగ్స్'},
+  {id:'backup', ic:'💾', label:'Backup', te:'బ్యాకప్'},
+];
+const navList = document.getElementById('navList');
+NAV.forEach(n=>{
+  const d = document.createElement('div');
+  d.className='nav-item'; d.dataset.view=n.id;
+  d.innerHTML = `<span class="ic">${n.ic}</span><span>${n.label}</span>`;
+  d.onclick = ()=>{ goto(n.id); document.getElementById('sidebar').classList.remove('open'); };
+  navList.appendChild(d);
+});
+document.getElementById('hamb').onclick = ()=> document.getElementById('sidebar').classList.toggle('open');
+
+function goto(view){
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active', x.dataset.view===view));
+  const meta = NAV.find(n=>n.id===view);
+  document.getElementById('pageTitle').textContent = meta.label;
+  render(view);
+}
+
+function setDate(){
+  document.getElementById('dateNow').textContent = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+setDate();
+
+/* ---------------- Render Router ---------------- */
+const content = document.getElementById('content');
+function render(view){
+  content.innerHTML = '';
+  const fn = {
+    dashboard: renderDashboard,
+    members: renderMembers,
+    groups: renderGroups,
+    collections: renderCollections,
+    auctions: renderAuctions,
+    receipts: renderReceipts,
+    reports: renderReports,
+    settings: renderSettings,
+    backup: renderBackup,
+  }[view];
+  if(fn) fn();
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(){
+  const totalGroups = DB.groups.length;
+  const totalMembers = DB.members.length;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const todayCollected = DB.collections.filter(c=>c.date===todayStr()).reduce((s,c)=>s+Number(c.amount),0);
+  const pending = DB.collections.filter(c=>c.status==='Pending').reduce((s,c)=>s+Number(c.amount),0);
+  const monthCollected = DB.collections.filter(c=>c.date && c.date.slice(0,7)===thisMonth && c.status==='Paid').reduce((s,c)=>s+Number(c.amount),0);
+  const monthTarget = DB.groups.reduce((s,g)=>s+Number(g.installment||0),0) || 1;
+  const pct = Math.min(100, Math.round(monthCollected/monthTarget*100));
+
+  const recent = [...DB.collections].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
+
+  content.innerHTML = `
+  <div class="grid cols-4" style="margin-bottom:18px;">
+    <div class="card stat b1"><div class="bar"></div><div class="label">Total Groups</div><div class="value">${totalGroups}</div></div>
+    <div class="card stat b1"><div class="bar"></div><div class="label">Total Members</div><div class="value">${totalMembers}</div></div>
+    <div class="card stat b3 green"><div class="bar"></div><div class="label">Today Collection</div><div class="value">${inr(todayCollected)}</div></div>
+    <div class="card stat b4 red"><div class="bar"></div><div class="label">Pending Amount</div><div class="value">${inr(pending)}</div></div>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h2 class="section-title">Monthly Collection (This Month) <span class="te">ఈ నెల వసూలు</span></h2>
+      <div style="display:flex;align-items:center;gap:22px;">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#eee6cf" stroke-width="14"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#c9982f" stroke-width="14"
+            stroke-dasharray="${314*pct/100} 314" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+          <text x="60" y="65" text-anchor="middle" font-size="20" font-weight="800" fill="#0f1b2d">${pct}%</text>
+        </svg>
+        <div>
+          <div style="font-size:12px;color:var(--muted);">Collected</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green);margin-bottom:8px;">${inr(monthCollected)}</div>
+          <div style="font-size:12px;color:var(--muted);">Target</div>
+          <div style="font-size:16px;font-weight:700;color:var(--navy);">${inr(monthTarget)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Auction Alerts <span class="te">వేలం సూచనలు</span></h2>
+      ${DB.groups.filter(g=>g.nextAuction).slice(0,5).map(g=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0eee6;">
+          <span style="font-size:18px;">🔔</span>
+          <div><b>${esc(g.name)}</b><br><span style="font-size:11.5px;color:var(--muted);">Auction on ${g.nextAuction}</span></div>
+        </div>`).join('') || '<div class="empty">No upcoming auctions <br><span class="big">🔔</span></div>'}
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h2 class="section-title">Recent Transactions <span class="te">ఇటీవలి లావాదేవీలు</span></h2>
+    <table>
+      <thead><tr><th>Date</th><th>Member</th><th>Group</th><th>Amount</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody>
+        ${recent.map(c=>`<tr>
+          <td>${c.date||''}</td><td>${esc(memberName(c.memberId))}</td><td>${esc(groupName(c.groupId))}</td>
+          <td>${inr(c.amount)}</td><td>Collection</td>
+          <td><span class="pill ${c.status==='Paid'?'paid':'pending'}">${c.status}</span></td>
+        </tr>`).join('') || `<tr><td colspan="6" class="empty">No transactions yet</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function memberName(id){ const m = DB.members.find(x=>x.id===id); return m? m.name : '—'; }
+function groupName(id){ const g = DB.groups.find(x=>x.id===id); return g? g.name : '—'; }
+
+/* ================= MEMBERS ================= */
+let memberEditId = null;
+function renderMembers(){
+  memberEditId = null;
+  content.innerHTML = `
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">Add / Edit Member <span class="te">సభ్యుడు జోడించండి</span></h2>
+      <div class="form-grid" id="memberForm">
+        <div class="field"><label>Full Name <span class="te">పేరు</span></label><input id="mName" placeholder="e.g. Ramesh Babu"></div>
+        <div class="field"><label>Mobile Number <span class="te">మొబైల్</span></label><input id="mMobile" placeholder="10-digit number"></div>
+        <div class="field full"><label>Address <span class="te">చిరునామా</span></label><input id="mAddress" placeholder="Address"></div>
+        <div class="field"><label>ID Proof Number <span class="te">గుర్తింపు సంఖ్య</span></label><input id="mIdProof" placeholder="Aadhaar / Voter ID"></div>
+        <div class="field"><label>Join Date <span class="te">చేరిన తేదీ</span></label><input id="mJoinDate" type="date" value="${todayStr()}"></div>
+        <div class="field full"><label>Status</label>
+          <select id="mStatus"><option>Active</option><option>Inactive</option></select>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="saveMember()">Save</button>
+        <button class="btn-ghost" onclick="renderMembers()">Reset</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar"><h2 class="section-title" style="margin:0;">All Members (${DB.members.length})</h2>
+        <input class="search-box" id="mSearch" placeholder="Search name / mobile..." oninput="filterMembers()">
+      </div>
+      <div style="max-height:520px;overflow:auto;">
+      <table><thead><tr><th>ID</th><th>Name</th><th>Mobile</th><th>Status</th><th></th></tr></thead>
+      <tbody id="membersTbody"></tbody></table>
+      </div>
+    </div>
+  </div>`;
+  fillMembersTable(DB.members);
+}
+function fillMembersTable(list){
+  const tb = document.getElementById('membersTbody');
+  tb.innerHTML = list.map(m=>`
+    <tr><td>${m.id}</td><td>${esc(m.name)}</td><td>${esc(m.mobile)}</td>
+    <td><span class="pill ${m.status==='Active'?'active':'closed'}">${m.status}</span></td>
+    <td class="row-actions">
+      <button class="icon-btn" onclick="editMember('${m.id}')">Edit</button>
+      <button class="icon-btn del" onclick="deleteMember('${m.id}')">Delete</button>
+    </td></tr>`).join('') || `<tr><td colspan="5" class="empty"><span class="big">🙍</span><br>No members yet — add your first member</td></tr>`;
+}
+function filterMembers(){
+  const q = document.getElementById('mSearch').value.toLowerCase();
+  fillMembersTable(DB.members.filter(m=> m.name.toLowerCase().includes(q) || (m.mobile||'').includes(q)));
+}
+function saveMember(){
+  const name = document.getElementById('mName').value.trim();
+  const mobile = document.getElementById('mMobile').value.trim();
+  if(!name){ toast('Please enter member name'); return; }
+  if(mobile && !/^\d{10}$/.test(mobile)){ toast('Mobile number must be 10 digits'); return; }
+  const data = {
+    id: memberEditId || uid('M'),
+    name, mobile,
+    address: document.getElementById('mAddress').value.trim(),
+    idProof: document.getElementById('mIdProof').value.trim(),
+    joinDate: document.getElementById('mJoinDate').value,
+    status: document.getElementById('mStatus').value,
+  };
+  if(memberEditId){
+    const i = DB.members.findIndex(m=>m.id===memberEditId);
+    DB.members[i] = data;
+  } else {
+    DB.members.push(data);
+  }
+  save(); toast('Member saved'); renderMembers();
+}
+function editMember(id){
+  const m = DB.members.find(x=>x.id===id); if(!m) return;
+  memberEditId = id;
+  document.getElementById('mName').value = m.name;
+  document.getElementById('mMobile').value = m.mobile||'';
+  document.getElementById('mAddress').value = m.address||'';
+  document.getElementById('mIdProof').value = m.idProof||'';
+  document.getElementById('mJoinDate').value = m.joinDate||todayStr();
+  document.getElementById('mStatus').value = m.status||'Active';
+  window.scrollTo(0,0);
+}
+function deleteMember(id){
+  askConfirm('Delete this member? This cannot be undone.', ()=>{
+    DB.members = DB.members.filter(m=>m.id!==id); save(); toast('Member deleted'); renderMembers();
+  });
+}
+
+/* ================= GROUPS ================= */
+let groupEditId = null;
+function renderGroups(){
+  groupEditId = null;
+  content.innerHTML = `
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">Add / Edit Group <span class="te">గ్రూప్ జోడించండి</span></h2>
+      <div class="form-grid" id="groupForm">
+        <div class="field full"><label>Group Name <span class="te">గ్రూప్ పేరు</span></label><input id="gName" placeholder="e.g. Group-A"></div>
+        <div class="field"><label>Chit Amount (₹) <span class="te">చిట్ మొత్తం</span></label><input id="gChit" type="number" oninput="updateGroupFormula()" placeholder="500000"></div>
+        <div class="field"><label>Duration (Months) <span class="te">నెలలు</span></label><input id="gMonths" type="number" oninput="updateGroupFormula()" placeholder="20"></div>
+        <div class="field"><label>Members Count <span class="te">సభ్యుల సంఖ్య</span></label><input id="gMembers" type="number" oninput="updateGroupFormula()" placeholder="20"></div>
+        <div class="field"><label>Next Auction Date</label><input id="gAuctionDate" type="date"></div>
+        <div class="field full"><label>Status</label><select id="gStatus"><option>Active</option><option>Closed</option></select></div>
+      </div>
+      <div class="calc-box" id="groupFormula">
+        Monthly Installment = Chit Amount ÷ Members<br>
+        <span style="color:var(--muted)">Enter values above to calculate</span>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="saveGroup()">Save</button>
+        <button class="btn-ghost" onclick="renderGroups()">Reset</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin:0 0 12px;">All Groups (${DB.groups.length})</h2>
+      <div style="max-height:520px;overflow:auto;">
+      <table><thead><tr><th>Group</th><th>Chit Amt</th><th>Installment</th><th>Members</th><th>Status</th><th></th></tr></thead>
+      <tbody>${DB.groups.map(g=>`
+        <tr><td><b>${esc(g.name)}</b></td><td>${inr(g.chitAmount)}</td><td>${inr(g.installment)}</td>
+        <td>${g.membersCount}</td><td><span class="pill ${g.status==='Active'?'active':'closed'}">${g.status}</span></td>
+        <td class="row-actions">
+          <button class="icon-btn" onclick="editGroup('${g.id}')">Edit</button>
+          <button class="icon-btn del" onclick="deleteGroup('${g.id}')">Delete</button>
+        </td></tr>`).join('') || `<tr><td colspan="6" class="empty"><span class="big">🗂️</span><br>No groups yet — create your first chit group</td></tr>`}
+      </tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+function updateGroupFormula(){
+  const chit = Number(document.getElementById('gChit').value)||0;
+  const members = Number(document.getElementById('gMembers').value)||0;
+  const box = document.getElementById('groupFormula');
+  if(chit>0 && members>0){
+    const inst = Math.round(chit/members);
+    box.innerHTML = `Monthly Installment = Chit Amount ÷ Members<br><b>${inr(chit)} ÷ ${members} = ${inr(inst)}</b>`;
+  } else {
+    box.innerHTML = `Monthly Installment = Chit Amount ÷ Members<br><span style="color:var(--muted)">Enter values above to calculate</span>`;
+  }
+}
+function saveGroup(){
+  const name = document.getElementById('gName').value.trim();
+  const chit = Number(document.getElementById('gChit').value);
+  const months = Number(document.getElementById('gMonths').value);
+  const members = Number(document.getElementById('gMembers').value);
+  if(!name || !chit || !months || !members){ toast('Please fill all required group fields'); return; }
+  const data = {
+    id: groupEditId || uid('G'),
+    name, chitAmount:chit, months, membersCount:members,
+    installment: Math.round(chit/members),
+    nextAuction: document.getElementById('gAuctionDate').value,
+    status: document.getElementById('gStatus').value,
+  };
+  if(groupEditId){ const i=DB.groups.findIndex(g=>g.id===groupEditId); DB.groups[i]=data; }
+  else DB.groups.push(data);
+  save(); toast('Group saved'); renderGroups();
+}
+function editGroup(id){
+  const g = DB.groups.find(x=>x.id===id); if(!g) return;
+  groupEditId = id;
+  document.getElementById('gName').value = g.name;
+  document.getElementById('gChit').value = g.chitAmount;
+  document.getElementById('gMonths').value = g.months;
+  document.getElementById('gMembers').value = g.membersCount;
+  document.getElementById('gAuctionDate').value = g.nextAuction||'';
+  document.getElementById('gStatus').value = g.status;
+  updateGroupFormula();
+  window.scrollTo(0,0);
+}
+function deleteGroup(id){
+  askConfirm('Delete this group? This cannot be undone.', ()=>{
+    DB.groups = DB.groups.filter(g=>g.id!==id); save(); toast('Group deleted'); renderGroups();
+  });
+}
+
+/* ================= COLLECTIONS ================= */
+function renderCollections(){
+  content.innerHTML = `
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">Collection Entry <span class="te">వసూలు నమోదు</span></h2>
+      <div class="form-grid">
+        <div class="field"><label>Group</label>
+          <select id="cGroup" onchange="onCollGroupChange()">
+            <option value="">Select Group</option>
+            ${DB.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Member</label>
+          <select id="cMember"><option value="">Select Member</option></select>
+        </div>
+        <div class="field"><label>Month</label><input id="cMonth" type="month" value="${todayStr().slice(0,7)}"></div>
+        <div class="field"><label>Amount (₹)</label><input id="cAmount" type="number" placeholder="25000"></div>
+        <div class="field"><label>Payment Date</label><input id="cDate" type="date" value="${todayStr()}"></div>
+        <div class="field"><label>Status</label><select id="cStatus"><option>Paid</option><option>Pending</option></select></div>
+        <div class="field full"><label>Payment Mode</label>
+          <select id="cMode"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="saveCollection()">Save</button>
+        <button class="btn-secondary" onclick="saveCollection(true)">Save &amp; Print Receipt</button>
+        <button class="btn-ghost" onclick="renderCollections()">Reset</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar"><h2 class="section-title" style="margin:0;">Collection History</h2>
+        <input class="search-box" id="colSearch" placeholder="Search member..." oninput="filterCollections()">
+      </div>
+      <div style="max-height:520px;overflow:auto;">
+      <table><thead><tr><th>Date</th><th>Member</th><th>Group</th><th>Amount</th><th>Status</th></tr></thead>
+      <tbody id="collTbody"></tbody></table>
+      </div>
+    </div>
+  </div>`;
+  fillCollTable([...DB.collections].sort((a,b)=>(b.date||'').localeCompare(a.date||'')));
+}
+function onCollGroupChange(){
+  const gid = document.getElementById('cGroup').value;
+  const sel = document.getElementById('cMember');
+  const g = DB.groups.find(x=>x.id===gid);
+  sel.innerHTML = '<option value="">Select Member</option>' + DB.members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+  if(g) document.getElementById('cAmount').value = g.installment;
+}
+function fillCollTable(list){
+  document.getElementById('collTbody').innerHTML = list.map(c=>`
+    <tr><td>${c.date}</td><td>${esc(memberName(c.memberId))}</td><td>${esc(groupName(c.groupId))}</td>
+    <td>${inr(c.amount)}</td><td><span class="pill ${c.status==='Paid'?'paid':'pending'}">${c.status}</span></td></tr>
+  `).join('') || `<tr><td colspan="5" class="empty"><span class="big">💵</span><br>No collections recorded yet</td></tr>`;
+}
+function filterCollections(){
+  const q = document.getElementById('colSearch').value.toLowerCase();
+  fillCollTable(DB.collections.filter(c=> memberName(c.memberId).toLowerCase().includes(q)));
+}
+function saveCollection(andPrint){
+  const groupId = document.getElementById('cGroup').value;
+  const memberId = document.getElementById('cMember').value;
+  const amount = Number(document.getElementById('cAmount').value);
+  if(!groupId||!memberId||!amount){ toast('Please select group, member and enter amount'); return; }
+  const rec = {
+    id: uid('C'), groupId, memberId,
+    month: document.getElementById('cMonth').value,
+    amount, date: document.getElementById('cDate').value,
+    status: document.getElementById('cStatus').value,
+    mode: document.getElementById('cMode').value,
+  };
+  DB.collections.push(rec); save(); toast('Collection saved');
+  if(andPrint){
+    const receipt = buildReceipt({groupId, memberId, amount, date:rec.date, mode:rec.mode, type:'Collection', month:rec.month});
+    goto('receipts'); renderReceiptPreview(receipt); return;
+  }
+  renderCollections();
+}
+
+/* ================= AUCTIONS ================= */
+function renderAuctions(){
+  content.innerHTML = `
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">Auction Entry <span class="te">వేలం నమోదు</span></h2>
+      <div class="form-grid">
+        <div class="field"><label>Group</label>
+          <select id="aGroup" onchange="onAuctionCalc()">
+            <option value="">Select Group</option>
+            ${DB.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Auction Date</label><input id="aDate" type="date" value="${todayStr()}"></div>
+        <div class="field"><label>Chit Amount (₹)</label><input id="aChit" type="number" readonly></div>
+        <div class="field"><label>Winner Member</label>
+          <select id="aWinner"><option value="">Select Member</option>
+          ${DB.members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
+        </div>
+        <div class="field full"><label>Bid Amount (₹) <span class="te">బిడ్ మొత్తం</span></label><input id="aBid" type="number" oninput="onAuctionCalc()" placeholder="450000"></div>
+      </div>
+      <div class="calc-box" id="auctionCalc">
+        <div class="row">Discount = Chit Amount − Bid Amount</div>
+        <div class="row">Dividend = Discount ÷ Members</div>
+        <div class="row total">Net Installment = Installment − Dividend</div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="saveAuction()">Save</button>
+        <button class="btn-secondary" onclick="saveAuction(true)">Save &amp; Print</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin:0 0 12px;">Auction History</h2>
+      <div style="max-height:520px;overflow:auto;">
+      <table><thead><tr><th>Date</th><th>Group</th><th>Winner</th><th>Bid</th><th>Dividend</th></tr></thead>
+      <tbody>${[...DB.auctions].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(a=>`
+        <tr><td>${a.date}</td><td>${esc(groupName(a.groupId))}</td><td>${esc(memberName(a.winnerId))}</td>
+        <td>${inr(a.bidAmount)}</td><td>${inr(a.dividend)}</td></tr>
+      `).join('') || `<tr><td colspan="5" class="empty"><span class="big">🔨</span><br>No auctions conducted yet</td></tr>`}
+      </tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+function onAuctionCalc(){
+  const gid = document.getElementById('aGroup').value;
+  const g = DB.groups.find(x=>x.id===gid);
+  const chitInput = document.getElementById('aChit');
+  chitInput.value = g? g.chitAmount : '';
+  const bid = Number(document.getElementById('aBid').value)||0;
+  const box = document.getElementById('auctionCalc');
+  if(g && bid){
+    const discount = g.chitAmount - bid;
+    const dividend = Math.round(discount / g.membersCount);
+    const net = g.installment - dividend;
+    box.innerHTML = `
+      <div class="row">Discount = ${inr(g.chitAmount)} − ${inr(bid)} <b>${inr(discount)}</b></div>
+      <div class="row">Dividend = ${inr(discount)} ÷ ${g.membersCount} <b>${inr(dividend)}</b></div>
+      <div class="row total">Net Installment = ${inr(g.installment)} − ${inr(dividend)} = ${inr(net)}</div>`;
+    box.dataset.discount = discount; box.dataset.dividend = dividend; box.dataset.net = net;
+  } else {
+    box.innerHTML = `<div class="row">Discount = Chit Amount − Bid Amount</div><div class="row">Dividend = Discount ÷ Members</div><div class="row total">Net Installment = Installment − Dividend</div>`;
+  }
+}
+function saveAuction(andPrint){
+  const groupId = document.getElementById('aGroup').value;
+  const winnerId = document.getElementById('aWinner').value;
+  const bid = Number(document.getElementById('aBid').value);
+  const g = DB.groups.find(x=>x.id===groupId);
+  if(!g || !winnerId || !bid){ toast('Please fill all auction fields'); return; }
+  const discount = g.chitAmount - bid;
+  const dividend = Math.round(discount / g.membersCount);
+  const net = g.installment - dividend;
+  const rec = { id:uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value };
+  DB.auctions.push(rec); save(); toast('Auction recorded');
+  if(andPrint){
+    const receipt = buildReceipt({groupId, memberId:winnerId, amount:net, date:rec.date, mode:'Cash', type:'Auction', discount, dividend, chitAmount:g.chitAmount, bidAmount:bid});
+    goto('receipts'); renderReceiptPreview(receipt); return;
+  }
+  renderAuctions();
+}
+
+/* ================= RECEIPTS ================= */
+function buildReceipt(data){
+  const no = 'RCP-' + String(DB.settings.nextReceiptNo).padStart(6,'0');
+  DB.settings.nextReceiptNo++;
+  const rec = { receiptNo:no, ...data, createdAt: new Date().toISOString() };
+  DB.receipts.push(rec); save();
+  return rec;
+}
+function renderReceipts(){
+  content.innerHTML = `
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">All Receipts <span class="te">రసీదులు</span></h2>
+      <div style="max-height:560px;overflow:auto;">
+      <table><thead><tr><th>Receipt No</th><th>Date</th><th>Member</th><th>Amount</th><th></th></tr></thead>
+      <tbody>${[...DB.receipts].reverse().map(r=>`
+        <tr><td>${r.receiptNo}</td><td>${r.date}</td><td>${esc(memberName(r.memberId))}</td><td>${inr(r.amount)}</td>
+        <td><button class="icon-btn" onclick='renderReceiptPreview(${JSON.stringify(r).replace(/'/g,"&apos;")})'>View</button></td></tr>
+      `).join('') || `<tr><td colspan="5" class="empty"><span class="big">🧾</span><br>No receipts generated yet</td></tr>`}
+      </tbody></table>
+      </div>
+    </div>
+    <div class="card"><div id="receiptSlot"><div class="empty"><span class="big">🧾</span><br>Select a receipt to preview,<br>or generate one from Collections / Auction</div></div></div>
+  </div>`;
+}
+function renderReceiptPreview(r){
+  const s = DB.settings;
+  const g = DB.groups.find(x=>x.id===r.groupId) || {};
+  const m = DB.members.find(x=>x.id===r.memberId) || {};
+  const html = `
+    <div id="receiptPreview">
+      <div class="rhead">
+        <h3>${esc(s.orgName).toUpperCase()}</h3>
+        <p>${esc(s.address)}</p>
+        <p>Ph: ${esc(s.phone)}</p>
+      </div>
+      <div class="rtitle">RECEIPT — ${r.type||'Collection'}</div>
+      <div class="rline"><span>Receipt No</span><b>${r.receiptNo}</b></div>
+      <div class="rline"><span>Date</span><b>${r.date}</b></div>
+      <div class="rline"><span>Member ID</span><b>${m.id||''}</b></div>
+      <div class="rline"><span>Member Name</span><b>${esc(m.name||'')}</b></div>
+      <div class="rline"><span>Group</span><b>${esc(g.name||'')}</b></div>
+      ${r.month?`<div class="rline"><span>Month</span><b>${r.month}</b></div>`:''}
+      ${r.type==='Auction'?`
+      <div class="rline"><span>Chit Amount</span><b>${inr(r.chitAmount)}</b></div>
+      <div class="rline"><span>Bid Amount</span><b>${inr(r.bidAmount)}</b></div>
+      <div class="rline"><span>Discount</span><b>${inr(r.discount)}</b></div>
+      <div class="rline"><span>Dividend</span><b>${inr(r.dividend)}</b></div>`:''}
+      <div class="rline"><span>Amount</span><b>${inr(r.amount)}</b></div>
+      <div class="rline"><span>Amount in Words</span><b style="text-align:right;max-width:220px;">${numToWords(r.amount)}</b></div>
+      <div class="rline"><span>Mode</span><b>${r.mode||'Cash'}</b></div>
+      <div class="rsign">Authorised Sign</div>
+    </div>
+    <div class="actions-row" style="justify-content:center;margin-top:16px;">
+      <button class="btn-secondary" onclick="window.print()">🖨 Print Receipt</button>
+    </div>`;
+  const slot = document.getElementById('receiptSlot');
+  if(slot){ slot.innerHTML = html; }
+  else { content.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto;">${html}</div>`; }
+}
+function numToWords(num){
+  num = Math.round(Number(num)||0);
+  if(num===0) return 'Zero Rupees Only';
+  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function two(n){ if(n<20) return ones[n]; return tens[Math.floor(n/10)] + (n%10? ' '+ones[n%10]:''); }
+  function three(n){ if(n>99) return ones[Math.floor(n/100)]+' Hundred'+(n%100? ' '+two(n%100):''); return two(n); }
+  let parts=[]; let crore=Math.floor(num/10000000); num%=10000000;
+  let lakh=Math.floor(num/100000); num%=100000;
+  let thousand=Math.floor(num/1000); num%=1000;
+  let rest=num;
+  if(crore) parts.push(three(crore)+' Crore');
+  if(lakh) parts.push(three(lakh)+' Lakh');
+  if(thousand) parts.push(three(thousand)+' Thousand');
+  if(rest) parts.push(three(rest));
+  return parts.join(' ') + ' Rupees Only';
+}
+
+/* ================= REPORTS ================= */
+function renderReports(){
+  const totalCollected = DB.collections.filter(c=>c.status==='Paid').reduce((s,c)=>s+Number(c.amount),0);
+  const totalPending = DB.collections.filter(c=>c.status==='Pending').reduce((s,c)=>s+Number(c.amount),0);
+  const totalDividend = DB.auctions.reduce((s,a)=>s+Number(a.dividend||0),0);
+  content.innerHTML = `
+  <div class="grid cols-3" style="margin-bottom:18px;">
+    <div class="card stat b3"><div class="bar"></div><div class="label">Total Collected</div><div class="value">${inr(totalCollected)}</div></div>
+    <div class="card stat b4"><div class="bar"></div><div class="label">Total Pending</div><div class="value">${inr(totalPending)}</div></div>
+    <div class="card stat b2"><div class="bar"></div><div class="label">Total Dividend Paid</div><div class="value">${inr(totalDividend)}</div></div>
+  </div>
+  <div class="card">
+    <div class="toolbar">
+      <h2 class="section-title" style="margin:0;">Reports <span class="te">నివేదికలు</span></h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" onclick="exportCSV('collections')">📄 Export Collections CSV</button>
+        <button class="btn-ghost" onclick="exportCSV('members')">📄 Export Members CSV</button>
+        <button class="btn-ghost" onclick="window.print()">🖨 Print This Page</button>
+      </div>
+    </div>
+    <h3 style="font-size:13px;color:var(--navy);">Pending Members</h3>
+    <table><thead><tr><th>Member</th><th>Group</th><th>Amount</th><th>Date</th></tr></thead>
+    <tbody>${DB.collections.filter(c=>c.status==='Pending').map(c=>`
+      <tr><td>${esc(memberName(c.memberId))}</td><td>${esc(groupName(c.groupId))}</td><td>${inr(c.amount)}</td><td>${c.date}</td></tr>
+    `).join('') || `<tr><td colspan="4" class="empty">No pending payments 🎉</td></tr>`}
+    </tbody></table>
+    <h3 style="font-size:13px;color:var(--navy);margin-top:20px;">Auction History</h3>
+    <table><thead><tr><th>Date</th><th>Group</th><th>Winner</th><th>Bid</th><th>Dividend</th><th>Net Installment</th></tr></thead>
+    <tbody>${DB.auctions.map(a=>`
+      <tr><td>${a.date}</td><td>${esc(groupName(a.groupId))}</td><td>${esc(memberName(a.winnerId))}</td>
+      <td>${inr(a.bidAmount)}</td><td>${inr(a.dividend)}</td><td>${inr(a.netInstallment)}</td></tr>
+    `).join('') || `<tr><td colspan="6" class="empty">No auctions yet</td></tr>`}
+    </tbody></table>
+  </div>`;
+}
+function exportCSV(kind){
+  let rows=[], name='';
+  if(kind==='collections'){
+    name='collections.csv';
+    rows=[['Date','Member','Group','Amount','Status','Mode']];
+    DB.collections.forEach(c=> rows.push([c.date, memberName(c.memberId), groupName(c.groupId), c.amount, c.status, c.mode]));
+  } else {
+    name='members.csv';
+    rows=[['ID','Name','Mobile','Address','Status','Join Date']];
+    DB.members.forEach(m=> rows.push([m.id,m.name,m.mobile,m.address,m.status,m.joinDate]));
+  }
+  const csv = rows.map(r=> r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  toast('Exported ' + name);
+}
+
+/* ================= SETTINGS ================= */
+function renderSettings(){
+  const s = DB.settings;
+  content.innerHTML = `
+  <div class="card" style="max-width:560px;">
+    <h2 class="section-title">Business Settings <span class="te">సెట్టింగ్స్</span></h2>
+    <div class="form-grid">
+      <div class="field full"><label>Organisation Name</label><input id="sOrg" value="${esc(s.orgName)}"></div>
+      <div class="field full"><label>Address</label><input id="sAddr" value="${esc(s.address)}"></div>
+      <div class="field"><label>Phone</label><input id="sPhone" value="${esc(s.phone)}"></div>
+      <div class="field"><label>Next Receipt No.</label><input id="sReceiptNo" type="number" value="${s.nextReceiptNo}"></div>
+    </div>
+    <div class="actions-row"><button class="btn-primary" onclick="saveSettings()">Save Settings</button></div>
+  </div>`;
+}
+function saveSettings(){
+  DB.settings.orgName = document.getElementById('sOrg').value.trim() || 'Chit Fund';
+  DB.settings.address = document.getElementById('sAddr').value.trim();
+  DB.settings.phone = document.getElementById('sPhone').value.trim();
+  DB.settings.nextReceiptNo = Number(document.getElementById('sReceiptNo').value) || 1001;
+  save(); toast('Settings saved');
+}
+
+/* ================= BACKUP ================= */
+function renderBackup(){
+  content.innerHTML = `
+  <div class="grid cols-2">
+    <div class="card">
+      <h2 class="section-title">Backup Data <span class="te">బ్యాకప్</span></h2>
+      <p style="color:var(--muted);font-size:13px;">Download all your data (members, groups, collections, auctions, receipts) as a single backup file. Keep this file safe — you can restore it anytime, on any device.</p>
+      <button class="btn-secondary" onclick="doBackup()">⬇ Download Backup File</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Restore Data <span class="te">పునరుద్ధరించండి</span></h2>
+      <p style="color:var(--muted);font-size:13px;">Restoring will replace all current data with the contents of the backup file. This cannot be undone.</p>
+      <input type="file" id="restoreFile" accept="application/json" style="margin-bottom:12px;">
+      <br><button class="btn-danger" onclick="doRestore()">⬆ Restore From File</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h2 class="section-title">Danger Zone</h2>
+    <button class="btn-danger" onclick="wipeAll()">🗑 Erase All Data</button>
+  </div>`;
+}
+function doBackup(){
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'chit-software-backup-' + todayStr() + '.json'; a.click();
+  toast('Backup downloaded');
+}
+function doRestore(){
+  const f = document.getElementById('restoreFile').files[0];
+  if(!f){ toast('Please choose a backup file'); return; }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.members || !data.groups){ toast('Invalid backup file'); return; }
+      askConfirm('Replace ALL current data with this backup?', ()=>{
+        DB = data; save(); toast('Data restored'); goto('dashboard');
+      });
+    } catch(err){ toast('Could not read file'); }
+  };
+  reader.readAsText(f);
+}
+function wipeAll(){
+  askConfirm('Erase ALL data permanently? This cannot be undone.', ()=>{
+    localStorage.removeItem(DB_KEY);
+    DB = loadDB(); toast('All data erased'); goto('dashboard');
+  });
+}
+
+/* ---------------- Init ---------------- */
+goto('dashboard');
+
+/* ---------------- PWA: Service Worker + Install prompt ---------------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'inline-flex';
+});
+function installApp(){
+  if (!deferredInstallPrompt){ toast('App is already installed, or your browser installed it automatically.'); return; }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.finally(()=>{
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
+window.addEventListener('appinstalled', ()=> toast('App installed! Find it on your home screen.'));
+</script>
+</body>
+</html>
