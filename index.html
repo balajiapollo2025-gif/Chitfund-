@@ -203,6 +203,7 @@ tr:hover td{background:#fbfaf6;}
 .modal-overlay.show{display:flex;}
 .modal-box{background:#fff;border-radius:10px;padding:22px;max-width:400px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.25);}
 .modal-box h3{margin-top:0;color:var(--navy);}
+.modal-box p{white-space:pre-line;}
 .modal-box .actions-row{justify-content:flex-end;}
 
 .view{display:none;}
@@ -228,7 +229,7 @@ tr:hover td{background:#fbfaf6;}
     </div>
   </div>
   <nav id="navList"></nav>
-  <div class="nav-foot">v1.0 · Offline Edition<br>All data stored on this device</div>
+  <div class="nav-foot" id="navFoot">Offline Edition<br>All data stored on this device</div>
 </div>
 
 <div id="main">
@@ -264,7 +265,9 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
+const APP_VERSION = '0.2';
 const DB_KEY = 'chitSoftwareDB_v1';
+const AUTO_BACKUP_KEY = 'chitSoftwareAutoBackups_v1';
 const todayStr = ()=> new Date().toISOString().slice(0,10);
 
 function loadDB(){
@@ -278,6 +281,41 @@ function loadDB(){
 let DB = loadDB();
 function save(){ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 
+/* ---------------- Auto Daily Backup ---------------- */
+// Every time the app is opened on a new calendar day, silently snapshot
+// the data into localStorage (keeps last 7 days) so nothing is lost even
+// if the user forgets to take a manual backup.
+function getAutoBackups(){
+  try{ return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY) || '[]'); } catch(e){ return []; }
+}
+function autoDailyBackup(){
+  try{
+    let backups = getAutoBackups();
+    const today = todayStr();
+    if(!backups.length || backups[backups.length-1].date !== today){
+      backups.push({ date: today, data: DB });
+      if(backups.length > 7) backups = backups.slice(-7);
+      localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(backups));
+    }
+  } catch(e){ /* storage full or unavailable - ignore silently */ }
+}
+function restoreAutoBackup(date){
+  const backups = getAutoBackups();
+  const b = backups.find(x=>x.date===date);
+  if(!b){ toast('Backup not found'); return; }
+  askConfirm('Restore data from ' + date + '? This replaces all current data.', ()=>{
+    DB = b.data; save(); toast('Restored from ' + date); goto('dashboard');
+  }, 'Restore', 'btn-primary');
+}
+function downloadAutoBackup(date){
+  const backups = getAutoBackups();
+  const b = backups.find(x=>x.date===date);
+  if(!b){ toast('Backup not found'); return; }
+  const blob = new Blob([JSON.stringify(b.data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'chit-software-autobackup-' + date + '.json'; a.click();
+}
+
 function uid(prefix){ return prefix + Math.random().toString(36).slice(2,8).toUpperCase(); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN'); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -290,8 +328,11 @@ function toast(msg){
 }
 
 let _confirmCb = null;
-function askConfirm(msg, cb){
+function askConfirm(msg, cb, btnLabel, btnClass){
   document.getElementById('confirmMsg').textContent = msg;
+  const yesBtn = document.getElementById('confirmYes');
+  yesBtn.textContent = btnLabel || 'Delete';
+  yesBtn.className = btnClass || 'btn-danger';
   document.getElementById('confirmModal').classList.add('show');
   _confirmCb = cb;
 }
@@ -1102,16 +1143,35 @@ async function shareReportWhatsApp(){
 /* ================= SETTINGS ================= */
 function renderSettings(){
   const s = DB.settings;
+  const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   content.innerHTML = `
-  <div class="card" style="max-width:560px;">
-    <h2 class="section-title">Business Settings <span class="te">సెట్టింగ్స్</span></h2>
-    <div class="form-grid">
-      <div class="field full"><label>Organisation Name</label><input id="sOrg" value="${esc(s.orgName)}"></div>
-      <div class="field full"><label>Address</label><input id="sAddr" value="${esc(s.address)}"></div>
-      <div class="field"><label>Phone</label><input id="sPhone" value="${esc(s.phone)}"></div>
-      <div class="field"><label>Next Receipt No.</label><input id="sReceiptNo" type="number" value="${s.nextReceiptNo}"></div>
+  <div class="grid cols-2" style="align-items:start;">
+    <div class="card">
+      <h2 class="section-title">Business Settings <span class="te">సెట్టింగ్స్</span></h2>
+      <div class="form-grid">
+        <div class="field full"><label>Organisation Name</label><input id="sOrg" value="${esc(s.orgName)}"></div>
+        <div class="field full"><label>Address</label><input id="sAddr" value="${esc(s.address)}"></div>
+        <div class="field"><label>Phone</label><input id="sPhone" value="${esc(s.phone)}"></div>
+        <div class="field"><label>Next Receipt No.</label><input id="sReceiptNo" type="number" value="${s.nextReceiptNo}"></div>
+      </div>
+      <div class="actions-row"><button class="btn-primary" onclick="saveSettings()">Save Settings</button></div>
     </div>
-    <div class="actions-row"><button class="btn-primary" onclick="saveSettings()">Save Settings</button></div>
+    <div class="card">
+      <h2 class="section-title">App Version &amp; Updates <span class="te">వెర్షన్ &amp; అప్‌డేట్</span></h2>
+      <p style="font-size:13px;">Current version: <b style="color:var(--navy);">v${APP_VERSION}</b></p>
+      <p style="color:var(--muted);font-size:12.5px;">Tap below (needs internet) to check whether a newer version of this app has been published.</p>
+      <button class="btn-secondary" onclick="checkForUpdate(true)">🔄 Check for Updates</button>
+      <div style="height:22px;"></div>
+      <h2 class="section-title" style="margin-bottom:8px;">Install This App <span class="te">యాప్ ఇన్‌స్టాల్ చేయండి</span></h2>
+      ${isStandalone ? `<p style="color:var(--green);font-weight:600;font-size:13px;">✅ Already installed on this device</p>` : `
+      <div class="actions-row" style="margin-top:0;">
+        <button class="btn-gold" onclick="installApp()">📱 Install Mobile App</button>
+        <button class="btn-gold" onclick="installApp()">💻 Install Desktop App</button>
+      </div>
+      ${isIOS ? `<p style="color:var(--muted);font-size:12px;margin-top:10px;">On iPhone/iPad: tap the Share icon in Safari, then "Add to Home Screen".</p>` : `<p style="color:var(--muted);font-size:12px;margin-top:10px;">If the button doesn't respond, use your browser menu (⋮ or Chrome menu) → "Install app" / "Add to Home screen".</p>`}
+      `}
+    </div>
   </div>`;
 }
 function saveSettings(){
@@ -1122,8 +1182,39 @@ function saveSettings(){
   save(); toast('Settings saved');
 }
 
+/* ---------------- Version check / Update notification ---------------- */
+async function checkForUpdate(manual){
+  try{
+    const res = await fetch('./version.json?t=' + Date.now(), { cache:'no-store' });
+    const data = await res.json();
+    if(data.version && data.version !== APP_VERSION){
+      askConfirm(
+        `🔔 New version v${data.version} is available!\n\n${data.notes||''}\n\nTap "Update Now" to reload and get the latest version. (Needs internet, takes a few seconds.)`,
+        async ()=>{
+          try{
+            if('serviceWorker' in navigator){
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for(const r of regs) await r.unregister();
+            }
+            if(window.caches){
+              const keys = await caches.keys();
+              for(const k of keys) await caches.delete(k);
+            }
+          } catch(e){}
+          location.reload();
+        }, 'Update Now', 'btn-primary'
+      );
+    } else if(manual){
+      toast('✅ You are using the latest version (v' + APP_VERSION + ')');
+    }
+  } catch(e){
+    if(manual) toast('Could not check for updates — please check your internet connection');
+  }
+}
+
 /* ================= BACKUP ================= */
 function renderBackup(){
+  const autoBackups = [...getAutoBackups()].reverse();
   content.innerHTML = `
   <div class="grid cols-2">
     <div class="card">
@@ -1137,6 +1228,20 @@ function renderBackup(){
       <input type="file" id="restoreFile" accept="application/json" style="margin-bottom:12px;">
       <br><button class="btn-danger" onclick="doRestore()">⬆ Restore From File</button>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h2 class="section-title">Auto Backups <span class="te">ఆటోమేటిక్ బ్యాకప్‌లు (గత 7 రోజులు)</span></h2>
+    <p style="color:var(--muted);font-size:13px;">The app automatically saves a snapshot of your data every day it is opened — no action needed. If something goes wrong, you can restore from any of the last 7 days below.</p>
+    <table><thead><tr><th>Date</th><th>Members</th><th>Groups</th><th>Collections</th><th></th></tr></thead>
+    <tbody>${autoBackups.map(b=>`
+      <tr><td><b>${b.date}</b>${b.date===todayStr()?' <span class="pill active">Today</span>':''}</td>
+      <td>${(b.data.members||[]).length}</td><td>${(b.data.groups||[]).length}</td><td>${(b.data.collections||[]).length}</td>
+      <td class="row-actions">
+        <button class="icon-btn" onclick="downloadAutoBackup('${b.date}')">⬇ Download</button>
+        <button class="icon-btn" onclick="restoreAutoBackup('${b.date}')">↺ Restore</button>
+      </td></tr>
+    `).join('') || `<tr><td colspan="5" class="empty">No auto backups yet — one will be created next time you open the app</td></tr>`}
+    </tbody></table>
   </div>
   <div class="card" style="margin-top:16px;">
     <h2 class="section-title">Danger Zone</h2>
@@ -1159,7 +1264,7 @@ function doRestore(){
       if(!data.members || !data.groups){ toast('Invalid backup file'); return; }
       askConfirm('Replace ALL current data with this backup?', ()=>{
         DB = data; save(); toast('Data restored'); goto('dashboard');
-      });
+      }, 'Restore', 'btn-primary');
     } catch(err){ toast('Could not read file'); }
   };
   reader.readAsText(f);
@@ -1172,7 +1277,11 @@ function wipeAll(){
 }
 
 /* ---------------- Init ---------------- */
+autoDailyBackup();
+const navFootEl = document.getElementById('navFoot');
+if(navFootEl) navFootEl.innerHTML = 'v' + APP_VERSION + ' · Offline Edition<br>All data stored on this device';
 goto('dashboard');
+setTimeout(()=> checkForUpdate(false), 2500);
 
 /* ---------------- PWA: Service Worker + Install prompt ---------------- */
 if ('serviceWorker' in navigator) {

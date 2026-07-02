@@ -46,3 +46,18 @@ that (airplane mode is fine).
 Just re-upload the changed file(s) the same way (Add file → Upload files,
 select the updated file, Commit). No renaming or folder steps needed since
 everything is flat.
+
+## Publishing future updates (for the developer/reseller)
+Whenever you change the app and want existing installs to get the update:
+1. Edit `index.html`, bump the line `const APP_VERSION = '0.2';` to the new
+   number (e.g. `'0.3'`).
+2. Edit `version.json` — set `"version"` to the same new number, and update
+   `"notes"` with a short description of what changed.
+3. Edit `service-worker.js` — bump `CACHE_NAME` (e.g. `chit-funds-cache-v4`).
+   This is required, otherwise phones keep using old cached files.
+4. Upload all changed files to GitHub (Add file → Upload files, same names
+   — GitHub will ask to confirm overwriting, click yes → Commit).
+5. Already-installed users will automatically get a popup ("New version
+   available") within a few seconds of opening the app (needs internet
+   just for that check), with an "Update Now" button that refreshes them
+   to the latest version.
