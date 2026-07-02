@@ -1,59 +1,48 @@
-# Sri Chit Funds — PWA (Installable Android App)
+# Sri Chit Funds — PWA (Flat Version, No Folders)
 
-This is a **Progressive Web App**. Once hosted, it can be installed on
-any Android phone straight from Chrome — it gets a real home-screen icon,
-opens full-screen (no browser bar), and works 100% offline after the first
-open. No Play Store needed.
+All files are in ONE flat list — no subfolders (no "icons" folder). This
+avoids the GitHub "drag and drop" folder-upload problem entirely.
 
-## Files in this package
+## Files in this package (11 files, all at the same level)
 ```
-index.html          → the whole app (UI + data logic)
-manifest.json        → tells Android this is an installable app (name, icon, colors)
-service-worker.js    → caches everything so it works with zero internet after first load
-icons/               → app icons in all required sizes
+index.html
+manifest.json
+service-worker.js
+icon-72.png
+icon-96.png
+icon-128.png
+icon-144.png
+icon-152.png
+icon-192.png
+icon-384.png
+icon-512.png
 ```
 
-## IMPORTANT: why you can't just double-click index.html for this part
-Android's "Install App" feature only works when the app is loaded over
-`https://` (or `localhost`) — this is a security rule set by Google, not
-something we can bypass. Opening the file directly (`file://...`) will
-still run the app perfectly, but Chrome won't offer to *install* it as an
-app icon.
+## How to upload to GitHub (simple — no folder needed)
+1. Open your GitHub repository.
+2. Click **Add file → Upload files**.
+3. Select ALL 11 files above at once (Ctrl+A in the file picker after
+   opening this extracted folder) and upload them together.
+4. Scroll down → **Commit changes**.
+5. Go to **Settings → Pages** → enable Pages for the `main` branch,
+   folder `/ (root)` → Save.
+6. Wait 1–2 minutes, then open your GitHub Pages link
+   (e.g. `https://<username>.github.io/<repo>/`).
 
-So you need to put these files on a free web host, **once**. After that,
-every visit works fully offline, exactly like a native app.
+## Verify it worked
+Open these 3 links directly in the browser — none should show a 404:
+- `https://<username>.github.io/<repo>/manifest.json`
+- `https://<username>.github.io/<repo>/icon-192.png`
+- `https://<username>.github.io/<repo>/service-worker.js`
 
-## Easiest way (2 minutes, free, no account strictly required)
+If all three load correctly, open the main link on Android **Chrome** and:
+- Tap the gold **"⬇ Install App"** button inside the app, OR
+- Chrome menu (⋮) → **"Install app"**
 
-**Option A — Netlify Drop**
-1. Go to https://app.netlify.com/drop on your computer.
-2. Drag this whole folder (the one containing index.html) onto the page.
-3. Netlify gives you a link like `https://yoursite.netlify.app`.
-4. Open that link on the Android phone in **Chrome**.
-5. Tap the **⋮ menu → "Install app"** (or the gold "⬇ Install App" button
-   inside the app itself, or "Add to Home screen").
-6. Done — the app icon now appears on the home screen and works offline.
+The app icon will appear on the home screen and work fully offline after
+that (airplane mode is fine).
 
-**Option B — GitHub Pages**
-1. Create a free GitHub repository and upload these files.
-2. Settings → Pages → enable Pages for the `main` branch.
-3. Open the generated `https://<username>.github.io/<repo>` link on Android
-   Chrome and install as above.
-
-**Option C — Your own web hosting**
-Upload the folder as-is (keep the folder structure) to any hosting that
-serves plain files over HTTPS (cPanel, Firebase Hosting, Vercel, etc.).
-
-## After installing
-- The app works completely offline — airplane mode, no wifi, no data, all fine.
-- All chit fund data (members, groups, collections, auctions, receipts) is
-  stored privately on that phone.
-- Use the in-app **Backup** screen regularly to download a JSON backup file
-  — this protects data if the phone is lost, reset, or the app is uninstalled.
-- To move data to a new phone: install the app there too, then use
-  Backup → Restore with the saved JSON file.
-
-## Prefer a real native APK instead?
-If you'd rather have a proper installable `.apk` file that doesn't need any
-hosting at all, ask for the "Android Studio WebView project" version
-instead — it wraps this same app so it never needs to be online, even once.
+## Updating content later
+Just re-upload the changed file(s) the same way (Add file → Upload files,
+select the updated file, Commit). No renaming or folder steps needed since
+everything is flat.
