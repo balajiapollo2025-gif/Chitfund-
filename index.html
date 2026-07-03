@@ -188,8 +188,8 @@ tr:hover td{background:#fbfaf6;}
 #receiptPreview .rsign{text-align:right;margin-top:30px;font-size:12px;font-style:italic;color:var(--muted);}
 @media print{
   body *{visibility:hidden;}
-  #receiptPreview,#receiptPreview *{visibility:visible;}
-  #receiptPreview{position:absolute;top:0;left:0;width:100%;border:none;}
+  .printable,.printable *{visibility:visible;}
+  .printable{position:absolute;top:0;left:0;width:100%;border:none;}
 }
 
 .toast{
@@ -224,7 +224,7 @@ tr:hover td{background:#fbfaf6;}
   <div class="brand">
     <div class="mark">₹</div>
     <div>
-      <div class="name">SRI CHIT FUNDS</div>
+      <div class="name" id="brandName">SRI CHIT FUNDS</div>
       <div class="sub">MANAGEMENT SOFTWARE</div>
     </div>
   </div>
@@ -265,7 +265,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.2';
+const APP_VERSION = '0.3';
 const DB_KEY = 'chitSoftwareDB_v1';
 const AUTO_BACKUP_KEY = 'chitSoftwareAutoBackups_v1';
 const todayStr = ()=> new Date().toISOString().slice(0,10);
@@ -304,7 +304,7 @@ function restoreAutoBackup(date){
   const b = backups.find(x=>x.date===date);
   if(!b){ toast('Backup not found'); return; }
   askConfirm('Restore data from ' + date + '? This replaces all current data.', ()=>{
-    DB = b.data; save(); toast('Restored from ' + date); goto('dashboard');
+    DB = b.data; save(); syncBrandName(); toast('Restored from ' + date); goto('dashboard');
   }, 'Restore', 'btn-primary');
 }
 function downloadAutoBackup(date){
@@ -786,17 +786,19 @@ function renderAuctions(){
       </div>
       <div class="actions-row">
         <button class="btn-primary" onclick="saveAuction()">Save</button>
-        <button class="btn-secondary" onclick="saveAuction(true)">Save &amp; Print</button>
+        <button class="btn-secondary" onclick="saveAuction(true)">Save &amp; Print Receipt</button>
+        <button class="btn-gold" onclick="saveAuction(false,true)">Save &amp; Agreement Letter</button>
       </div>
     </div>
     <div class="card">
       <h2 class="section-title" style="margin:0 0 12px;">Auction History</h2>
       <div style="max-height:520px;overflow:auto;">
-      <table><thead><tr><th>Date</th><th>Group</th><th>Winner</th><th>Bid</th><th>Dividend</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Group</th><th>Winner</th><th>Bid</th><th>Dividend</th><th></th></tr></thead>
       <tbody>${[...DB.auctions].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(a=>`
         <tr><td>${a.date}</td><td>${esc(groupName(a.groupId))}</td><td>${esc(memberName(a.winnerId))}</td>
-        <td>${inr(a.bidAmount)}</td><td>${inr(a.dividend)}</td></tr>
-      `).join('') || `<tr><td colspan="5" class="empty"><span class="big">🔨</span><br>No auctions conducted yet</td></tr>`}
+        <td>${inr(a.bidAmount)}</td><td>${inr(a.dividend)}</td>
+        <td><button class="icon-btn" onclick="showAgreement('${a.id}')">📄 Agreement</button></td></tr>
+      `).join('') || `<tr><td colspan="6" class="empty"><span class="big">🔨</span><br>No auctions conducted yet</td></tr>`}
       </tbody></table>
       </div>
     </div>
@@ -822,7 +824,7 @@ function onAuctionCalc(){
     box.innerHTML = `<div class="row">Discount = Chit Amount − Bid Amount</div><div class="row">Dividend = Discount ÷ Members</div><div class="row total">Net Installment = Installment − Dividend</div>`;
   }
 }
-function saveAuction(andPrint){
+function saveAuction(andPrint, andAgreement){
   const groupId = document.getElementById('aGroup').value;
   const winnerId = document.getElementById('aWinner').value;
   const bid = Number(document.getElementById('aBid').value);
@@ -833,11 +835,153 @@ function saveAuction(andPrint){
   const net = g.installment - dividend;
   const rec = { id:uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value };
   DB.auctions.push(rec); save(); toast('Auction recorded');
+  if(andAgreement){
+    showAgreement(rec.id);
+    return;
+  }
   if(andPrint){
     const receipt = buildReceipt({groupId, memberId:winnerId, amount:net, date:rec.date, mode:'Cash', type:'Auction', discount, dividend, chitAmount:g.chitAmount, bidAmount:bid});
     goto('receipts'); renderReceiptPreview(receipt); return;
   }
   renderAuctions();
+}
+
+/* ================= AUCTION AGREEMENT LETTER ================= */
+let currentAgreement = null;
+function showAgreement(auctionId){
+  const a = DB.auctions.find(x=>x.id===auctionId);
+  if(!a){ toast('Auction record not found'); return; }
+  currentAgreement = a;
+  const s = DB.settings;
+  const g = DB.groups.find(x=>x.id===a.groupId) || {};
+  const m = DB.members.find(x=>x.id===a.winnerId) || {};
+  content.innerHTML = `
+  <div class="card" style="max-width:760px;margin:0 auto;">
+    <div id="agreementPreview" class="printable" style="padding:6px;">
+      <div style="text-align:center;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:18px;">
+        <h2 style="margin:0;color:var(--navy);letter-spacing:.5px;">${esc(s.orgName).toUpperCase()}</h2>
+        <p style="margin:2px 0;font-size:12px;color:var(--muted);">${esc(s.address)} &nbsp;·&nbsp; Ph: ${esc(s.phone)}</p>
+      </div>
+      <h3 style="text-align:center;text-decoration:underline;color:var(--navy);font-size:16px;">CHIT AUCTION — PRIZED SUBSCRIBER AGREEMENT</h3>
+      <p style="font-size:13px;line-height:1.8;margin-top:16px;">
+        This Agreement is made on <b>${a.date}</b>, between <b>${esc(s.orgName)}</b> (hereinafter called the "Foreman/Company"), and <b>${esc(m.name||'')}</b>, residing at ${esc(m.address||'____________________')}, holding Member ID <b>${m.id||''}</b> and Mobile No. <b>${esc(m.mobile||'__________')}</b> (hereinafter called the "Prized Subscriber"), a subscriber of Chit Group <b>${esc(g.name||'')}</b> of total Chit Value <b>${inr(g.chitAmount)}</b> running for <b>${g.months||''}</b> months.
+      </p>
+      <p style="font-size:13px;line-height:1.8;">
+        <b>WHEREAS</b> an auction for the above Chit Group was conducted on <b>${a.date}</b>, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of <b>${inr(a.discount)}</b>, resulting in a net prize amount payable of <b>${inr(a.bidAmount)}</b> and a dividend of <b>${inr(a.dividend)}</b> distributable to the remaining non-prized subscribers of the group.
+      </p>
+      <p style="font-size:13px;font-weight:700;margin-top:16px;margin-bottom:4px;">NOW THIS AGREEMENT WITNESSES AS FOLLOWS:</p>
+      <ol style="font-size:12.5px;line-height:1.9;padding-left:20px;">
+        <li>The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of <b>${inr(a.bidAmount)}</b> (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.</li>
+        <li>The Prized Subscriber undertakes to continue paying the future monthly subscription of <b>${inr(g.installment)}</b> regularly, without default, until completion of the full chit period of <b>${g.months||''}</b> months.</li>
+        <li>The Prized Subscriber shall, at the request of the Foreman, furnish acceptable surety/guarantee for due payment of the remaining subscription amount, as required under the rules of this chit group and the Chit Funds Act, 1982.</li>
+        <li>In the event of default in payment of future subscriptions, the Foreman shall be entitled to recover the balance amount due, together with interest and applicable charges, through appropriate legal proceedings, and may also proceed against the surety/guarantor furnished.</li>
+        <li>The Prized Subscriber shall not withdraw from the chit group nor transfer subscriber rights to any third party without prior written consent of the Foreman.</li>
+        <li>This agreement is executed on a Government Revenue Stamp affixed below, duly signed by the Prized Subscriber in acknowledgment of the terms herein and receipt of the prize amount.</li>
+        <li>Any dispute arising out of this agreement shall be subject to the jurisdiction of the local courts only.</li>
+      </ol>
+      <p style="font-size:11px;color:var(--muted);margin-top:16px;font-style:italic;">Note: This is a general-purpose template. Please have it reviewed by your auditor/advocate to ensure it meets the documentation required under the Chit Funds Act, 1982 and your state's chit fund rules before use.</p>
+      <div style="display:flex;justify-content:space-between;margin-top:60px;">
+        <div style="text-align:center;width:44%;">
+          <div style="border:1px dashed #999;height:70px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);margin-bottom:8px;">Revenue Stamp Here</div>
+          <div style="border-top:1px solid #333;padding-top:6px;font-size:12.5px;">Prized Subscriber Signature<br><b>${esc(m.name||'')}</b></div>
+        </div>
+        <div style="text-align:center;width:44%;">
+          <div style="height:70px;"></div>
+          <div style="border-top:1px solid #333;padding-top:6px;font-size:12.5px;">For ${esc(s.orgName)}<br>Authorised Signatory</div>
+        </div>
+      </div>
+    </div>
+    <div class="actions-row" style="justify-content:center;margin-top:22px;">
+      <button class="btn-ghost" onclick="goto('auctions')">← Back</button>
+      <button class="btn-secondary" onclick="window.print()">🖨 Print Agreement</button>
+      <button class="btn-gold" onclick="shareAgreementWhatsApp()">📲 Send via WhatsApp</button>
+    </div>
+  </div>`;
+}
+function generateAgreementPDF(a){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const margin = 50, pageWidth = 595 - margin*2;
+  const s = DB.settings;
+  const g = DB.groups.find(x=>x.id===a.groupId) || {};
+  const m = DB.members.find(x=>x.id===a.winnerId) || {};
+  let y = 50;
+  function addWrapped(text, size, bold, gap){
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(size);
+    const lines = doc.splitTextToSize(text, pageWidth);
+    lines.forEach(line=>{
+      if(y > 780){ doc.addPage(); y = 50; }
+      doc.text(line, margin, y);
+      y += size*1.35;
+    });
+    y += gap || 6;
+  }
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text(String(s.orgName||'').toUpperCase(), 297.5, y, {align:'center'}); y+=18;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text(String(s.address||''), 297.5, y, {align:'center'}); y+=14;
+  doc.text('Ph: '+(s.phone||''), 297.5, y, {align:'center'}); y+=26;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('CHIT AUCTION — PRIZED SUBSCRIBER AGREEMENT', 297.5, y, {align:'center'}); y+=28;
+
+  addWrapped(`This Agreement is made on ${a.date}, between ${s.orgName} (hereinafter called the "Foreman/Company"), and ${m.name||''}, residing at ${m.address||'____________________'}, holding Member ID ${m.id||''} and Mobile No. ${m.mobile||'__________'} (hereinafter called the "Prized Subscriber"), a subscriber of Chit Group ${g.name||''} of total Chit Value ${inr(g.chitAmount)} running for ${g.months||''} months.`, 10.5, false, 10);
+  addWrapped(`WHEREAS an auction for the above Chit Group was conducted on ${a.date}, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of ${inr(a.discount)}, resulting in a net prize amount payable of ${inr(a.bidAmount)} and a dividend of ${inr(a.dividend)} distributable to the remaining non-prized subscribers of the group.`, 10.5, false, 14);
+  addWrapped('NOW THIS AGREEMENT WITNESSES AS FOLLOWS:', 11, true, 8);
+  [
+    `1. The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of ${inr(a.bidAmount)} (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.`,
+    `2. The Prized Subscriber undertakes to continue paying the future monthly subscription of ${inr(g.installment)} regularly, without default, until completion of the full chit period of ${g.months||''} months.`,
+    `3. The Prized Subscriber shall, at the request of the Foreman, furnish acceptable surety/guarantee for due payment of the remaining subscription amount, as required under the rules of this chit group and the Chit Funds Act, 1982.`,
+    `4. In the event of default in payment of future subscriptions, the Foreman shall be entitled to recover the balance amount due, together with interest and applicable charges, through appropriate legal proceedings, and may also proceed against the surety/guarantor furnished.`,
+    `5. The Prized Subscriber shall not withdraw from the chit group nor transfer subscriber rights to any third party without prior written consent of the Foreman.`,
+    `6. This agreement is executed on a Government Revenue Stamp affixed below, duly signed by the Prized Subscriber in acknowledgment of the terms herein and receipt of the prize amount.`,
+    `7. Any dispute arising out of this agreement shall be subject to the jurisdiction of the local courts only.`
+  ].forEach(t => addWrapped(t, 10, false, 8));
+  addWrapped('Note: This is a general-purpose template. Please have it reviewed by your auditor/advocate to ensure it meets the documentation required under the Chit Funds Act, 1982 and your state\'s chit fund rules before use.', 8.5, false, 34);
+
+  if(y > 690){ doc.addPage(); y = 60; }
+  const boxW = 150, boxH = 60;
+  const sigY = y + boxH + 24;
+  doc.setDrawColor(150);
+  if(doc.setLineDash) doc.setLineDash([2,2],0);
+  doc.rect(margin, y, boxW, boxH);
+  if(doc.setLineDash) doc.setLineDash([],0);
+  doc.setDrawColor(0);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Revenue Stamp Here', margin + boxW/2, y + boxH/2 + 3, {align:'center'});
+  doc.setFontSize(10);
+  doc.line(margin, sigY, margin + boxW, sigY);
+  doc.text('Prized Subscriber Signature', margin + boxW/2, sigY + 14, {align:'center'});
+  doc.setFont('helvetica','bold'); doc.text(m.name||'', margin + boxW/2, sigY + 28, {align:'center'});
+  const rightX = 595 - margin - boxW;
+  doc.setFont('helvetica','normal');
+  doc.line(rightX, sigY, rightX + boxW, sigY);
+  doc.text('For ' + (s.orgName||''), rightX + boxW/2, sigY + 14, {align:'center'});
+  doc.text('Authorised Signatory', rightX + boxW/2, sigY + 28, {align:'center'});
+  return doc;
+}
+async function shareAgreementWhatsApp(){
+  const a = currentAgreement;
+  if(!a){ toast('No agreement selected'); return; }
+  const m = DB.members.find(x=>x.id===a.winnerId);
+  const g = DB.groups.find(x=>x.id===a.groupId);
+  const text = `Chit Auction Agreement\nGroup: ${g?g.name:''}\nWinner: ${m?m.name:''}\nPrize Amount: ${inr(a.bidAmount)}\nDate: ${a.date}`;
+  try{
+    const doc = generateAgreementPDF(a);
+    const blob = doc.output('blob');
+    const fname = 'Agreement-' + (m ? m.name.replace(/\s+/g,'_') : 'member') + '-' + a.date + '.pdf';
+    const file = new File([blob], fname, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({ files:[file], title:'Chit Auction Agreement', text });
+      return;
+    }
+    doc.save(fname);
+    const phone = (m && m.mobile) ? '91'+m.mobile : '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text + '\n\n(PDF downloaded — please attach it in WhatsApp)')}`, '_blank');
+    toast('PDF downloaded — attach it to WhatsApp manually');
+  } catch(e){
+    const phone = (m && m.mobile) ? '91'+m.mobile : '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+  }
 }
 
 /* ================= REMINDERS (Next Month Due Alerts) ================= */
@@ -928,7 +1072,7 @@ function renderReceiptPreview(r){
   const g = DB.groups.find(x=>x.id===r.groupId) || {};
   const m = DB.members.find(x=>x.id===r.memberId) || {};
   const html = `
-    <div id="receiptPreview">
+    <div id="receiptPreview" class="printable">
       <div class="rhead">
         <h3>${esc(s.orgName).toUpperCase()}</h3>
         <p>${esc(s.address)}</p>
@@ -1174,12 +1318,17 @@ function renderSettings(){
     </div>
   </div>`;
 }
+function syncBrandName(){
+  const nameEl = document.getElementById('brandName');
+  if(nameEl) nameEl.textContent = (DB.settings.orgName || 'CHIT FUNDS').toUpperCase();
+  document.title = (DB.settings.orgName || 'Sri Chit Funds') + ' — Management Software';
+}
 function saveSettings(){
   DB.settings.orgName = document.getElementById('sOrg').value.trim() || 'Chit Fund';
   DB.settings.address = document.getElementById('sAddr').value.trim();
   DB.settings.phone = document.getElementById('sPhone').value.trim();
   DB.settings.nextReceiptNo = Number(document.getElementById('sReceiptNo').value) || 1001;
-  save(); toast('Settings saved');
+  save(); syncBrandName(); toast('Settings saved');
 }
 
 /* ---------------- Version check / Update notification ---------------- */
@@ -1263,7 +1412,7 @@ function doRestore(){
       const data = JSON.parse(e.target.result);
       if(!data.members || !data.groups){ toast('Invalid backup file'); return; }
       askConfirm('Replace ALL current data with this backup?', ()=>{
-        DB = data; save(); toast('Data restored'); goto('dashboard');
+        DB = data; save(); syncBrandName(); toast('Data restored'); goto('dashboard');
       }, 'Restore', 'btn-primary');
     } catch(err){ toast('Could not read file'); }
   };
@@ -1272,12 +1421,13 @@ function doRestore(){
 function wipeAll(){
   askConfirm('Erase ALL data permanently? This cannot be undone.', ()=>{
     localStorage.removeItem(DB_KEY);
-    DB = loadDB(); toast('All data erased'); goto('dashboard');
+    DB = loadDB(); syncBrandName(); toast('All data erased'); goto('dashboard');
   });
 }
 
 /* ---------------- Init ---------------- */
 autoDailyBackup();
+syncBrandName();
 const navFootEl = document.getElementById('navFoot');
 if(navFootEl) navFootEl.innerHTML = 'v' + APP_VERSION + ' · Offline Edition<br>All data stored on this device';
 goto('dashboard');
