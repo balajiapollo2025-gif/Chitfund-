@@ -220,6 +220,7 @@ tr:hover td{background:#fbfaf6;}
 </head>
 <body>
 
+<div id="licenseGate" style="display:none;position:fixed;inset:0;background:rgba(15,27,45,.75);z-index:200;align-items:center;justify-content:center;"></div>
 <div id="sidebar">
   <div class="brand">
     <div class="mark">₹</div>
@@ -239,6 +240,7 @@ tr:hover td{background:#fbfaf6;}
       <h1 id="pageTitle">Dashboard</h1>
     </div>
     <div style="display:flex;align-items:center;gap:14px;">
+      <span id="licenseBadge" class="pill" style="display:none;cursor:pointer;"></span>
       <button id="installBtn" onclick="installApp()" class="btn-gold" style="display:none;align-items:center;gap:6px;padding:8px 14px;font-size:12.5px;">⬇ Install App</button>
       <div class="meta" id="dateNow"></div>
     </div>
@@ -265,7 +267,17 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.3';
+const APP_VERSION = '0.4';
+
+/* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
+// Leave this as null while you are setting up — the app runs unrestricted.
+// Once you generate a Master Key in the License Manager (Mother App), copy
+// its Public Key JSON here to switch on license enforcement for everyone
+// using this deployed app.
+const PUBLIC_KEY_JWK = {"key_ops":["verify"],"ext":true,"kty":"EC","x":"JKNrQ6aRpGtHq3TAXgnmR3JBO1S2TMPVKBl1JJ6UPK4","y":"NrfGihBM9cH-okWZDwRaMSvOxWPRKKGEh2mw3lBBv20","crv":"P-256"};
+const LICENSE_STORAGE_KEY = 'chitSoftwareLicense_v1';
+const LICENSE_GRACE_DAYS = 5;
+const SELLER_CONTACT = '9876543210'; // <-- put YOUR (the seller's) WhatsApp number here for renewal contact
 const DB_KEY = 'chitSoftwareDB_v1';
 const AUTO_BACKUP_KEY = 'chitSoftwareAutoBackups_v1';
 const todayStr = ()=> new Date().toISOString().slice(0,10);
@@ -319,6 +331,142 @@ function downloadAutoBackup(date){
 function uid(prefix){ return prefix + Math.random().toString(36).slice(2,8).toUpperCase(); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN'); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function b64urlToBytes(str){
+  str = str.replace(/-/g,'+').replace(/_/g,'/');
+  while(str.length % 4) str += '=';
+  const bin = atob(str);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+let _cachedPublicKey = null;
+async function importLicensePublicKey(){
+  if(!PUBLIC_KEY_JWK) return null;
+  if(_cachedPublicKey) return _cachedPublicKey;
+  try{
+    _cachedPublicKey = await crypto.subtle.importKey('jwk', PUBLIC_KEY_JWK, {name:'ECDSA', namedCurve:'P-256'}, true, ['verify']);
+    return _cachedPublicKey;
+  } catch(e){ return null; }
+}
+async function verifyLicenseKeyString(keyStr){
+  const pub = await importLicensePublicKey();
+  if(!pub) return { valid:false, reason:'Licensing is not configured on this app yet.' };
+  const parts = (keyStr||'').trim().split('.');
+  if(parts.length !== 2) return { valid:false, reason:'This does not look like a valid license key.' };
+  try{
+    const sigBytes = b64urlToBytes(parts[1]);
+    const ok = await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, pub, sigBytes, new TextEncoder().encode(parts[0]));
+    if(!ok) return { valid:false, reason:'This key is invalid or has been altered.' };
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])));
+    if(!payload.expires || !payload.cid) return { valid:false, reason:'This key is malformed.' };
+    return { valid:true, payload };
+  } catch(e){ return { valid:false, reason:'Could not read this key.' }; }
+}
+function getStoredLicense(){
+  try{ return JSON.parse(localStorage.getItem(LICENSE_STORAGE_KEY) || 'null'); } catch(e){ return null; }
+}
+function licenseStatus(){
+  const lic = getStoredLicense();
+  if(!lic) return { state:'none' };
+  const today = new Date(todayStr());
+  const expiry = new Date(lic.expires);
+  const daysLeft = Math.ceil((expiry - today) / 86400000);
+  if(daysLeft >= 0) return { state:'active', daysLeft, lic };
+  if(daysLeft >= -LICENSE_GRACE_DAYS) return { state:'grace', daysLeft, lic };
+  return { state:'expired', daysLeft, lic };
+}
+async function activateLicenseKey(){
+  const input = document.getElementById('licenseKeyInput');
+  const keyStr = input ? input.value.trim() : '';
+  if(!keyStr){ toast('Please paste your license key'); return; }
+  const result = await verifyLicenseKeyString(keyStr);
+  if(!result.valid){ toast('❌ ' + result.reason); return; }
+  localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(result.payload));
+  toast('✅ License activated!');
+  const wasLocked = document.getElementById('sidebar').style.display === 'none';
+  if(wasLocked){ checkLicenseAndBoot(); } else { renderLicense(); showLicenseBadge(licenseStatus()); }
+}
+function showLicenseBadge(status){
+  const el = document.getElementById('licenseBadge');
+  if(!el) return;
+  if(status.state === 'active'){
+    el.style.display = 'inline-block';
+    el.className = 'pill ' + (status.daysLeft <= 30 ? 'pending' : 'paid');
+    el.textContent = '🔑 ' + status.daysLeft + 'd left';
+  } else if(status.state === 'grace'){
+    el.style.display = 'inline-block';
+    el.className = 'pill pending';
+    el.textContent = '⚠ Renew: ' + (LICENSE_GRACE_DAYS + status.daysLeft) + 'd grace';
+  } else {
+    el.style.display = 'none';
+  }
+  el.onclick = ()=> goto('license');
+}
+function renderLicense(){
+  const status = licenseStatus();
+  const lic = status.lic;
+  content.innerHTML = `
+  <div class="card" style="max-width:520px;">
+    <h2 class="section-title">App License <span class="te">లైసెన్స్</span></h2>
+    ${lic ? `
+      <div class="calc-box" style="margin-bottom:16px;">
+        <div class="row"><span>Customer ID</span><b>${esc(lic.cid)}</b></div>
+        <div class="row"><span>Name</span><b>${esc(lic.name||'')}</b></div>
+        <div class="row"><span>Valid From</span><b>${lic.issued}</b></div>
+        <div class="row total"><span>Valid Until</span><b>${lic.expires}</b></div>
+      </div>
+      <p style="font-size:13px;">${
+        status.state==='active' ? `✅ ${status.daysLeft} day(s) remaining` :
+        status.state==='grace' ? `⚠ Expired — ${LICENSE_GRACE_DAYS + status.daysLeft} grace day(s) left. Please renew soon.` :
+        '❌ License expired. Please enter a renewal key below to continue.'
+      }</p>
+    ` : `<p style="color:var(--muted);font-size:13px;">No license activated yet. Paste the key your provider sent you below.</p>`}
+    <div class="field full" style="margin-top:14px;">
+      <label>Paste New / Renewal License Key</label>
+      <textarea id="licenseKeyInput" rows="3" placeholder="Paste the key your provider sent you"></textarea>
+    </div>
+    <div class="actions-row"><button class="btn-primary" onclick="activateLicenseKey()">Activate Key</button></div>
+    <p style="color:var(--muted);font-size:12px;margin-top:14px;">For renewal, contact your software provider on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
+  </div>`;
+}
+function renderLicenseGateScreen(status){
+  const gate = document.getElementById('licenseGate');
+  const expired = status.state === 'none' ? false : true;
+  gate.style.display = 'flex';
+  gate.innerHTML = `
+    <div style="max-width:420px;width:92%;background:#fff;border-radius:12px;padding:32px 28px;box-shadow:0 10px 40px rgba(0,0,0,.25);text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">${expired ? '🔒' : '🔑'}</div>
+      <h2 style="color:var(--navy);margin:0 0 8px;">${expired ? 'License Expired' : 'Activate Your App'}</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">${expired ? 'Your license period has ended. Please enter a renewal key to continue using the app. Your data is safe and untouched.' : 'Please enter the license key given by your software provider to start using this app.'}</p>
+      <textarea id="licenseKeyInput" rows="3" placeholder="Paste your license key here" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font-family:monospace;font-size:11.5px;margin-bottom:12px;"></textarea>
+      <button class="btn-primary" onclick="activateLicenseKey()" style="width:100%;padding:12px;">Activate</button>
+      <p style="color:var(--muted);font-size:12px;margin-top:16px;">For a key, contact your provider on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
+    </div>`;
+}
+async function checkLicenseAndBoot(){
+  if(!PUBLIC_KEY_JWK){
+    // Licensing not configured yet by the developer — app runs unrestricted.
+    document.getElementById('licenseGate').style.display = 'none';
+    document.getElementById('sidebar').style.display = '';
+    document.getElementById('main').style.display = '';
+    autoDailyBackup(); syncBrandName(); goto('dashboard');
+    setTimeout(()=> checkForUpdate(false), 2500);
+    return;
+  }
+  const status = licenseStatus();
+  if(status.state === 'active' || status.state === 'grace'){
+    document.getElementById('licenseGate').style.display = 'none';
+    document.getElementById('sidebar').style.display = '';
+    document.getElementById('main').style.display = '';
+    showLicenseBadge(status);
+    autoDailyBackup(); syncBrandName(); goto('dashboard');
+    setTimeout(()=> checkForUpdate(false), 2500);
+  } else {
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').style.display = 'none';
+    renderLicenseGateScreen(status);
+  }
+}
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -350,6 +498,7 @@ const NAV = [
   {id:'receipts', ic:'🧾', label:'Receipts', te:'రసీదులు'},
   {id:'reports', ic:'📊', label:'Reports', te:'నివేదికలు'},
   {id:'settings', ic:'⚙️', label:'Settings', te:'సెట్టింగ్స్'},
+  {id:'license', ic:'🔑', label:'License', te:'లైసెన్స్'},
   {id:'backup', ic:'💾', label:'Backup', te:'బ్యాకప్'},
 ];
 const navList = document.getElementById('navList');
@@ -390,6 +539,7 @@ function render(view){
     receipts: renderReceipts,
     reports: renderReports,
     settings: renderSettings,
+    license: renderLicense,
     backup: renderBackup,
   }[view];
   if(fn) fn();
@@ -1426,12 +1576,9 @@ function wipeAll(){
 }
 
 /* ---------------- Init ---------------- */
-autoDailyBackup();
-syncBrandName();
 const navFootEl = document.getElementById('navFoot');
 if(navFootEl) navFootEl.innerHTML = 'v' + APP_VERSION + ' · Offline Edition<br>All data stored on this device';
-goto('dashboard');
-setTimeout(()=> checkForUpdate(false), 2500);
+checkLicenseAndBoot();
 
 /* ---------------- PWA: Service Worker + Install prompt ---------------- */
 if ('serviceWorker' in navigator) {

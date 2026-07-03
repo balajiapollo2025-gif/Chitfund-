@@ -61,3 +61,26 @@ Whenever you change the app and want existing installs to get the update:
    available") within a few seconds of opening the app (needs internet
    just for that check), with an "Update Now" button that refreshes them
    to the latest version.
+
+## Licensing System (yearly renewal keys)
+This app now includes a built-in license system:
+- On first open, the app shows an "Activate Your App" screen asking for a
+  license key.
+- You generate license keys using a separate, PRIVATE tool called the
+  "License Manager" (Mother App) — this is a different file, kept only on
+  your own computer, never uploaded anywhere public.
+- A generated key is valid for the number of days you choose (365 by
+  default = 1 year). The customer pastes it once into their app.
+- The app shows a small badge (top-right) with days remaining. There is a
+  5-day grace period after expiry before the app locks again, so a late
+  renewal doesn't cut off a customer instantly.
+- To renew a customer: open the License Manager, load their Customer ID,
+  click "Generate License Key" again, and send them the new key.
+
+### Before you start selling
+1. Open `index.html` and find `const SELLER_CONTACT = '9876543210';`
+   near the top of the `<script>` — change this to YOUR WhatsApp number.
+   This is what customers see if they need to request a renewal.
+2. Keep the separate `mother-app.html` (License Manager) file ONLY on your
+   own computer. Do not upload it to GitHub or send it to anyone — it
+   contains the secret key used to sign valid licenses.

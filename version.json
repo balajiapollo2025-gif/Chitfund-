@@ -1,5 +1,5 @@
 {
-  "version": "0.3",
+  "version": "0.4",
   "updatedAt": "2026-07-03",
-  "notes": "Fixed organisation name not updating across the app. Added: Auction Agreement Letter (auto-generated, print & WhatsApp PDF share)."
+  "notes": "Added: License activation system (yearly renewal keys), license status badge, and a private License Manager tool for the app owner."
 }
