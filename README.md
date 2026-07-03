@@ -84,3 +84,28 @@ This app now includes a built-in license system:
 2. Keep the separate `mother-app.html` (License Manager) file ONLY on your
    own computer. Do not upload it to GitHub or send it to anyone — it
    contains the secret key used to sign valid licenses.
+
+## Remote Activate/Deactivate (new)
+The License Manager now has an Activate/Deactivate toggle per customer.
+Because this app is fully offline, deactivation works via a small shared
+file called `revoked-list.json`:
+1. In the License Manager, click 🚫 Deactivate (or ✅ Activate) next to a
+   customer — this updates your local ledger and auto-downloads an updated
+   `revoked-list.json`.
+2. Upload that file to your GitHub repo (same filename, root folder,
+   overwrite the old one).
+3. The customer's app checks this file automatically whenever they have
+   internet (at every app open, and every ~15 minutes while the app stays
+   open). If their Customer ID is on the list, their app locks immediately
+   with a "Access Deactivated" screen, even if their yearly key hasn't
+   expired yet.
+
+**Important limitation:** this check needs the customer's phone to have
+internet at that moment. A phone that stays fully offline cannot be
+remotely deactivated — it will keep working until its key's normal 1-year
+expiry (or the 5-day grace period) runs out. This is an inherent trade-off
+of a fully offline app with no live server.
+
+Remember to include `revoked-list.json` (currently `{"revoked": []}` by
+default) when you upload files to GitHub — it must exist at the same
+location as `index.html`.

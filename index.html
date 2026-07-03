@@ -267,7 +267,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.4';
+const APP_VERSION = '0.5';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -443,6 +443,34 @@ function renderLicenseGateScreen(status){
       <p style="color:var(--muted);font-size:12px;margin-top:16px;">For a key, contact your provider on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
     </div>`;
 }
+function renderRevokedScreen(cid){
+  const gate = document.getElementById('licenseGate');
+  gate.style.display = 'flex';
+  gate.innerHTML = `
+    <div style="max-width:420px;width:92%;background:#fff;border-radius:12px;padding:32px 28px;box-shadow:0 10px 40px rgba(0,0,0,.25);text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">🚫</div>
+      <h2 style="color:var(--red);margin:0 0 8px;">Access Deactivated</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">Your access (Customer ID: <b>${esc(cid||'')}</b>) has been deactivated by your software provider.</p>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">Your data is safe and untouched. Please contact your provider to resolve this.</p>
+      <p style="color:var(--muted);font-size:12px;">Contact on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
+    </div>`;
+}
+// Checks the provider's public "deactivated customers" list, hosted next to
+// this app (revoked-list.json). Requires internet to check; if offline or
+// the file can't be reached, the app fails OPEN (continues normally) since
+// a purely offline app cannot enforce a remote deactivation without a
+// network connection at that moment.
+async function isCustomerRevoked(cid){
+  if(!cid) return false;
+  try{
+    const res = await fetch('./revoked-list.json?t=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) return false;
+    const data = await res.json();
+    return Array.isArray(data.revoked) && data.revoked.includes(cid);
+  } catch(e){
+    return false;
+  }
+}
 async function checkLicenseAndBoot(){
   if(!PUBLIC_KEY_JWK){
     // Licensing not configured yet by the developer — app runs unrestricted.
@@ -454,6 +482,14 @@ async function checkLicenseAndBoot(){
     return;
   }
   const status = licenseStatus();
+  const cid = status.lic ? status.lic.cid : null;
+  const revoked = await isCustomerRevoked(cid);
+  if(revoked){
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').style.display = 'none';
+    renderRevokedScreen(cid);
+    return;
+  }
   if(status.state === 'active' || status.state === 'grace'){
     document.getElementById('licenseGate').style.display = 'none';
     document.getElementById('sidebar').style.display = '';
@@ -1579,6 +1615,22 @@ function wipeAll(){
 const navFootEl = document.getElementById('navFoot');
 if(navFootEl) navFootEl.innerHTML = 'v' + APP_VERSION + ' · Offline Edition<br>All data stored on this device';
 checkLicenseAndBoot();
+// Re-check the deactivated-customer list periodically while the app stays
+// open (in case the seller deactivates someone mid-session). Only acts if
+// currently online and unlocked; does nothing if offline.
+setInterval(async ()=>{
+  if(!PUBLIC_KEY_JWK) return;
+  const status = licenseStatus();
+  if(status.state === 'active' || status.state === 'grace'){
+    const cid = status.lic ? status.lic.cid : null;
+    const revoked = await isCustomerRevoked(cid);
+    if(revoked){
+      document.getElementById('sidebar').style.display = 'none';
+      document.getElementById('main').style.display = 'none';
+      renderRevokedScreen(cid);
+    }
+  }
+}, 15*60*1000);
 
 /* ---------------- PWA: Service Worker + Install prompt ---------------- */
 if ('serviceWorker' in navigator) {

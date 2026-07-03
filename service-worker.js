@@ -2,10 +2,10 @@
 // Caches the app shell so it loads and works with zero network connection,
 // and lets Chrome/Android offer "Add to Home Screen" / "Install App".
 //
-// IMPORTANT: bump CACHE_NAME (e.g. v3, v4...) every time you publish an
+// IMPORTANT: bump CACHE_NAME (e.g. v6, v7...) every time you publish an
 // update, otherwise returning users keep seeing the old cached version.
 
-const CACHE_NAME = 'chit-funds-cache-v5';
+const CACHE_NAME = 'chit-funds-cache-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -18,9 +18,12 @@ const ASSETS = [
   './icon-192.png',
   './icon-384.png',
   './icon-512.png'
-  // Note: version.json is deliberately NOT precached — it is always
-  // fetched fresh from the network so update checks are reliable.
+  // Note: version.json and revoked-list.json are deliberately NOT
+  // precached — they are always fetched fresh from the network so update
+  // checks and license-deactivation checks are reliable.
 ];
+
+const NETWORK_FIRST_FILES = ['version.json', 'revoked-list.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -41,9 +44,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // version.json: always go to the network first (cache-bust), so the
-  // in-app "Check for Updates" button reflects the real latest version.
-  if (event.request.url.includes('version.json')) {
+  // version.json / revoked-list.json: always go to the network first
+  // (cache-bust), so update checks and license status are always current.
+  if (NETWORK_FIRST_FILES.some((f) => event.request.url.includes(f))) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
     );
