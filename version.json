@@ -1,5 +1,5 @@
 {
-  "version": "0.5",
+  "version": "0.6",
   "updatedAt": "2026-07-03",
-  "notes": "Added: remote Activate/Deactivate control from the License Manager (requires customer's phone to have internet to take effect)."
+  "notes": "Faster deactivation response (checks every 2 min + on app resume) and a new License page diagnostic showing whether the deactivation check is reaching the server."
 }

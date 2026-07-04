@@ -267,7 +267,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.5';
+const APP_VERSION = '0.6';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -405,6 +405,8 @@ function showLicenseBadge(status){
 function renderLicense(){
   const status = licenseStatus();
   const lic = status.lic;
+  let diag = null;
+  try{ diag = JSON.parse(localStorage.getItem('chitLastRevocationCheck') || 'null'); } catch(e){}
   content.innerHTML = `
   <div class="card" style="max-width:520px;">
     <h2 class="section-title">App License <span class="te">లైసెన్స్</span></h2>
@@ -427,6 +429,15 @@ function renderLicense(){
     </div>
     <div class="actions-row"><button class="btn-primary" onclick="activateLicenseKey()">Activate Key</button></div>
     <p style="color:var(--muted);font-size:12px;margin-top:14px;">For renewal, contact your software provider on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
+  </div>
+  <div class="card" style="max-width:520px;margin-top:16px;">
+    <h2 class="section-title" style="margin-bottom:8px;">Remote Status Check <span class="te">(డయాగ్నస్టిక్)</span></h2>
+    ${diag ? `
+      <p style="font-size:12.5px;">Last checked: <b>${new Date(diag.time).toLocaleString('en-IN')}</b></p>
+      <p style="font-size:12.5px;">${diag.ok ? '✅ ' : '⚠️ '}${esc(diag.info||'')}</p>
+    ` : `<p style="color:var(--muted);font-size:12.5px;">No check has run yet.</p>`}
+    <p style="color:var(--muted);font-size:11.5px;">This app must be opened via its live website link (not a local file) and have internet, for your provider to be able to remotely deactivate it.</p>
+    <button class="btn-ghost" onclick="recheckRevocation().then(()=>{toast('Checked'); renderLicense();})">🔄 Check Now</button>
   </div>`;
 }
 function renderLicenseGateScreen(status){
@@ -464,10 +475,15 @@ async function isCustomerRevoked(cid){
   if(!cid) return false;
   try{
     const res = await fetch('./revoked-list.json?t=' + Date.now(), { cache:'no-store' });
-    if(!res.ok) return false;
+    if(!res.ok){
+      localStorage.setItem('chitLastRevocationCheck', JSON.stringify({time:new Date().toISOString(), ok:false, info:'HTTP '+res.status}));
+      return false;
+    }
     const data = await res.json();
+    localStorage.setItem('chitLastRevocationCheck', JSON.stringify({time:new Date().toISOString(), ok:true, info:'Checked '+(data.revoked||[]).length+' revoked ID(s)'}));
     return Array.isArray(data.revoked) && data.revoked.includes(cid);
   } catch(e){
+    localStorage.setItem('chitLastRevocationCheck', JSON.stringify({time:new Date().toISOString(), ok:false, info:'Could not reach server (offline, or app opened as a local file instead of the live website)'}));
     return false;
   }
 }
@@ -1615,10 +1631,13 @@ function wipeAll(){
 const navFootEl = document.getElementById('navFoot');
 if(navFootEl) navFootEl.innerHTML = 'v' + APP_VERSION + ' · Offline Edition<br>All data stored on this device';
 checkLicenseAndBoot();
-// Re-check the deactivated-customer list periodically while the app stays
-// open (in case the seller deactivates someone mid-session). Only acts if
-// currently online and unlocked; does nothing if offline.
-setInterval(async ()=>{
+
+// Re-check the deactivated-customer list (a) every 2 minutes while the app
+// stays open, and (b) immediately whenever the user comes back to this tab
+// (e.g. switches apps and returns) — this makes a Deactivate from the
+// License Manager take effect within seconds of the phone getting internet,
+// instead of waiting for the next full app restart.
+async function recheckRevocation(){
   if(!PUBLIC_KEY_JWK) return;
   const status = licenseStatus();
   if(status.state === 'active' || status.state === 'grace'){
@@ -1630,7 +1649,10 @@ setInterval(async ()=>{
       renderRevokedScreen(cid);
     }
   }
-}, 15*60*1000);
+}
+setInterval(recheckRevocation, 2*60*1000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) recheckRevocation(); });
+window.addEventListener('focus', recheckRevocation);
 
 /* ---------------- PWA: Service Worker + Install prompt ---------------- */
 if ('serviceWorker' in navigator) {
