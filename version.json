@@ -1,5 +1,5 @@
 {
-  "version": "0.6",
-  "updatedAt": "2026-07-03",
-  "notes": "Faster deactivation response (checks every 2 min + on app resume) and a new License page diagnostic showing whether the deactivation check is reaching the server."
+  "version": "0.7",
+  "updatedAt": "2026-07-06",
+  "notes": "Fixed: reactivating a customer in the License Manager now automatically restores their app access (no reinstall needed). Added a 'Check Again' button directly on the Access Deactivated screen."
 }

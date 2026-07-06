@@ -267,7 +267,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.6';
+const APP_VERSION = '0.7';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -463,8 +463,18 @@ function renderRevokedScreen(cid){
       <h2 style="color:var(--red);margin:0 0 8px;">Access Deactivated</h2>
       <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">Your access (Customer ID: <b>${esc(cid||'')}</b>) has been deactivated by your software provider.</p>
       <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">Your data is safe and untouched. Please contact your provider to resolve this.</p>
+      <button class="btn-primary" id="revokedRecheckBtn" onclick="manualRevokedRecheck()" style="width:100%;padding:11px;margin-bottom:12px;">🔄 Check Again</button>
       <p style="color:var(--muted);font-size:12px;">Contact on WhatsApp: <b>${esc(SELLER_CONTACT)}</b></p>
     </div>`;
+}
+async function manualRevokedRecheck(){
+  const btn = document.getElementById('revokedRecheckBtn');
+  if(btn){ btn.textContent = 'Checking...'; btn.disabled = true; }
+  await recheckRevocation();
+  if(btn && document.getElementById('revokedRecheckBtn')){
+    // still locked — restore button text
+    btn.textContent = '🔄 Check Again'; btn.disabled = false;
+  }
 }
 // Checks the provider's public "deactivated customers" list, hosted next to
 // this app (revoked-list.json). Requires internet to check; if offline or
@@ -1634,9 +1644,12 @@ checkLicenseAndBoot();
 
 // Re-check the deactivated-customer list (a) every 2 minutes while the app
 // stays open, and (b) immediately whenever the user comes back to this tab
-// (e.g. switches apps and returns) — this makes a Deactivate from the
-// License Manager take effect within seconds of the phone getting internet,
-// instead of waiting for the next full app restart.
+// (e.g. switches apps and returns) — this makes a Deactivate/Activate from
+// the License Manager take effect within seconds of the phone getting
+// internet, instead of waiting for the next full app restart. Handles BOTH
+// directions: locks the app if newly revoked, and automatically restores
+// access if a previously-revoked customer gets reactivated.
+let isCurrentlyRevokedLocked = false;
 async function recheckRevocation(){
   if(!PUBLIC_KEY_JWK) return;
   const status = licenseStatus();
@@ -1644,9 +1657,15 @@ async function recheckRevocation(){
     const cid = status.lic ? status.lic.cid : null;
     const revoked = await isCustomerRevoked(cid);
     if(revoked){
+      isCurrentlyRevokedLocked = true;
       document.getElementById('sidebar').style.display = 'none';
       document.getElementById('main').style.display = 'none';
       renderRevokedScreen(cid);
+    } else if(isCurrentlyRevokedLocked){
+      // Was locked, now reactivated — restore access automatically.
+      isCurrentlyRevokedLocked = false;
+      toast('✅ Access restored');
+      checkLicenseAndBoot();
     }
   }
 }
