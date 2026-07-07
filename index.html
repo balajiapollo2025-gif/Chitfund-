@@ -267,7 +267,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.7';
+const APP_VERSION = '0.8';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -1202,15 +1202,28 @@ function nextMonthInfo(){
   const d = new Date(now.getFullYear(), now.getMonth()+1, 1);
   return { key: d.toISOString().slice(0,7), label: d.toLocaleDateString('en-IN',{month:'long',year:'numeric'}) };
 }
+// If a group had an auction THIS calendar month, the discount/dividend
+// reduces every member's installment for the upcoming due month. Returns
+// the adjusted amount to collect, and the auction record if one applied.
+function getGroupAdjustedDue(g){
+  const thisMonthKey = new Date().toISOString().slice(0,7);
+  const auctionsThisMonth = DB.auctions.filter(a => a.groupId===g.id && a.date && a.date.slice(0,7)===thisMonthKey);
+  if(!auctionsThisMonth.length) return { amount: g.installment, auction: null };
+  const latest = [...auctionsThisMonth].sort((a,b)=> b.date.localeCompare(a.date))[0];
+  return { amount: latest.netInstallment, auction: latest };
+}
+let reminderGroupFilter = 'all';
 function renderReminders(){
   const nm = nextMonthInfo();
   let rows = [];
   DB.groups.filter(g=>g.status==='Active').forEach(g=>{
+    if(reminderGroupFilter!=='all' && g.id!==reminderGroupFilter) return;
+    const due = getGroupAdjustedDue(g);
     (g.members||[]).forEach(mid=>{
       const m = DB.members.find(x=>x.id===mid);
       if(!m) return;
       const paid = DB.collections.some(c=>c.groupId===g.id && c.memberId===mid && c.month===nm.key && c.status==='Paid');
-      if(!paid) rows.push({ group:g, member:m, amount:g.installment });
+      if(!paid) rows.push({ group:g, member:m, amount:due.amount, adjusted: !!due.auction, auction: due.auction });
     });
   });
   const anyGroupHasMembers = DB.groups.some(g=>(g.members||[]).length>0);
@@ -1220,25 +1233,59 @@ function renderReminders(){
       <h2 class="section-title" style="margin:0;">Due Reminders — ${nm.label} <span class="te">వచ్చే నెల చందా గుర్తుచేయడం</span></h2>
       <span style="font-size:12px;color:var(--muted);">${rows.length} member(s) pending reminder</span>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <label style="font-size:12.5px;font-weight:600;color:#3a4257;">Group:</label>
+      <select id="reminderGroupFilter" onchange="reminderGroupFilter=this.value; renderReminders();" style="max-width:220px;">
+        <option value="all" ${reminderGroupFilter==='all'?'selected':''}>All Groups</option>
+        ${DB.groups.map(g=>`<option value="${g.id}" ${reminderGroupFilter===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}
+      </select>
+      ${rows.length ? `<button class="btn-ghost" onclick="copyAllReminderMessages()">📋 Copy All Messages</button>` : ''}
+    </div>
     ${!anyGroupHasMembers ? `<div class="calc-box" style="margin-bottom:14px;">No members are assigned to any group yet. Go to <b>Groups → Edit</b> and tick the members belonging to each group — reminders are calculated from that list.</div>` : ''}
-    <p style="color:var(--muted);font-size:12.5px;margin-top:-4px;">Tap "Send Reminder" to open WhatsApp with a ready-made message for that member. This has to be sent one at a time — WhatsApp does not allow silent bulk sending.</p>
+    <p style="color:var(--muted);font-size:12.5px;margin-top:-4px;">Tap "Send Reminder" to open WhatsApp with a ready-made message for that member. This has to be sent one at a time — WhatsApp does not allow silent bulk sending. Amounts marked <span class="pill pending" style="padding:1px 8px;">Auction Adjusted</span> already include this month's discount dividend.</p>
     <table><thead><tr><th>Member</th><th>Mobile</th><th>Group</th><th>Due Amount</th><th></th></tr></thead>
     <tbody>${rows.map(r=>`
-      <tr><td>${esc(r.member.name)}</td><td>${esc(r.member.mobile||'—')}</td><td>${esc(r.group.name)}</td><td>${inr(r.amount)}</td>
+      <tr><td>${esc(r.member.name)}</td><td>${esc(r.member.mobile||'—')}</td><td>${esc(r.group.name)}</td>
+      <td>${inr(r.amount)} ${r.adjusted?'<span class="pill pending" style="margin-left:4px;">Auction Adjusted</span>':''}</td>
       <td><button class="icon-btn" onclick="sendDueReminder('${r.member.id}','${r.group.id}')" ${!r.member.mobile?'disabled title="No mobile number saved"':''}>📲 Send Reminder</button></td></tr>
     `).join('') || `<tr><td colspan="5" class="empty"><span class="big">🎉</span><br>No pending reminders — everyone due next month is already marked Paid</td></tr>`}
     </tbody></table>
   </div>`;
+}
+function buildReminderMessage(m, g, due){
+  const nm = nextMonthInfo();
+  if(due.auction){
+    const a = due.auction;
+    return `Dear ${m.name},\n\nYour chit installment for ${g.name} due on ${nm.label} has been adjusted after this month's auction (${a.date}):\n\nRegular Installment: ${inr(g.installment)}\nYour Discount Share: -${inr(g.installment - due.amount)}\nAmount to Pay: ${inr(due.amount)}\n\nKindly pay before the due date.\n\n— ${DB.settings.orgName}`;
+  }
+  return `Dear ${m.name},\n\nThis is a reminder that your chit installment of ${inr(due.amount)} for ${g.name} is due for ${nm.label}.\n\nKindly pay before the due date to avoid inconvenience.\n\n— ${DB.settings.orgName}`;
 }
 function sendDueReminder(memberId, groupId){
   const m = DB.members.find(x=>x.id===memberId);
   const g = DB.groups.find(x=>x.id===groupId);
   if(!m || !g){ toast('Member or group not found'); return; }
   if(!m.mobile){ toast('This member has no mobile number saved'); return; }
-  const nm = nextMonthInfo();
-  const text = `Dear ${m.name},\n\nThis is a reminder that your chit installment of ${inr(g.installment)} for ${g.name} is due for ${nm.label}.\n\nKindly pay before the due date to avoid inconvenience.\n\n— ${DB.settings.orgName}`;
+  const due = getGroupAdjustedDue(g);
+  const text = buildReminderMessage(m, g, due);
   const phone = '91' + m.mobile;
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+}
+function copyAllReminderMessages(){
+  const nm = nextMonthInfo();
+  let rows = [];
+  DB.groups.filter(g=>g.status==='Active').forEach(g=>{
+    if(reminderGroupFilter!=='all' && g.id!==reminderGroupFilter) return;
+    const due = getGroupAdjustedDue(g);
+    (g.members||[]).forEach(mid=>{
+      const m = DB.members.find(x=>x.id===mid);
+      if(!m) return;
+      const paid = DB.collections.some(c=>c.groupId===g.id && c.memberId===mid && c.month===nm.key && c.status==='Paid');
+      if(!paid) rows.push(buildReminderMessage(m, g, due) + `\n(Send to: ${m.mobile||'no mobile saved'})`);
+    });
+  });
+  if(!rows.length){ toast('Nothing to copy'); return; }
+  const all = rows.join('\n\n-----------------------------\n\n');
+  navigator.clipboard.writeText(all).then(()=> toast('📋 Copied ' + rows.length + ' message(s)')).catch(()=> toast('Could not copy'));
 }
 
 /* ================= RECEIPTS ================= */

@@ -1,5 +1,5 @@
 {
-  "version": "0.7",
-  "updatedAt": "2026-07-06",
-  "notes": "Fixed: reactivating a customer in the License Manager now automatically restores their app access (no reinstall needed). Added a 'Check Again' button directly on the Access Deactivated screen."
+  "version": "0.8",
+  "updatedAt": "2026-07-07",
+  "notes": "Reminders now auto-adjust for this month's auction discount: pick a Group in Reminders to see each member's correct reduced installment (with the calculation shown), and send WhatsApp reminders individually or copy all messages at once."
 }
