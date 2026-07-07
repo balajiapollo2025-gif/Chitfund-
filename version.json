@@ -1,5 +1,5 @@
 {
-  "version": "0.8",
+  "version": "0.9",
   "updatedAt": "2026-07-07",
-  "notes": "Reminders now auto-adjust for this month's auction discount: pick a Group in Reminders to see each member's correct reduced installment (with the calculation shown), and send WhatsApp reminders individually or copy all messages at once."
+  "notes": "Reports page redesigned as an official business report: letterhead with organisation name/address, colorful summary cards, sectioned tables (Pending, Auction History, Group Summary) with clean right-aligned amount columns that no longer wrap awkwardly."
 }
