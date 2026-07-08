@@ -1,5 +1,5 @@
 {
-  "version": "0.9",
+  "version": "0.10",
   "updatedAt": "2026-07-07",
-  "notes": "Reports page redesigned as an official business report: letterhead with organisation name/address, colorful summary cards, sectioned tables (Pending, Auction History, Group Summary) with clean right-aligned amount columns that no longer wrap awkwardly."
+  "notes": "Fixed the stray '1' appearing before amounts in the Agreement Letter PDF (jsPDF's built-in font doesn't support the Rupee symbol, now shows 'Rs.' inside PDFs). The colorful Report PDF and Receipt PDF already used the correct format."
 }

@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.9';
+const APP_VERSION = '0.10';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -356,6 +356,10 @@ function downloadAutoBackup(date){
 
 function uid(prefix){ return prefix + Math.random().toString(36).slice(2,8).toUpperCase(); }
 function inr(n){ n = Number(n)||0; return '₹' + n.toLocaleString('en-IN'); }
+// jsPDF's built-in fonts (Helvetica etc.) do not contain the ₹ glyph — it
+// renders as a stray superscript "1" instead. Use this for ANY text drawn
+// inside a PDF (doc.text calls); keep inr() with ₹ for on-screen HTML.
+function pdfAmt(n){ n = Number(n)||0; return 'Rs. ' + n.toLocaleString('en-IN'); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function b64urlToBytes(str){
   str = str.replace(/-/g,'+').replace(/_/g,'/');
@@ -1162,12 +1166,12 @@ function generateAgreementPDF(a){
   doc.setFont('helvetica','bold'); doc.setFontSize(13);
   doc.text('CHIT AUCTION — PRIZED SUBSCRIBER AGREEMENT', 297.5, y, {align:'center'}); y+=28;
 
-  addWrapped(`This Agreement is made on ${a.date}, between ${s.orgName} (hereinafter called the "Foreman/Company"), and ${m.name||''}, residing at ${m.address||'____________________'}, holding Member ID ${m.id||''} and Mobile No. ${m.mobile||'__________'} (hereinafter called the "Prized Subscriber"), a subscriber of Chit Group ${g.name||''} of total Chit Value ${inr(g.chitAmount)} running for ${g.months||''} months.`, 10.5, false, 10);
-  addWrapped(`WHEREAS an auction for the above Chit Group was conducted on ${a.date}, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of ${inr(a.discount)}, resulting in a net prize amount payable of ${inr(a.bidAmount)} and a dividend of ${inr(a.dividend)} distributable to the remaining non-prized subscribers of the group.`, 10.5, false, 14);
+  addWrapped(`This Agreement is made on ${a.date}, between ${s.orgName} (hereinafter called the "Foreman/Company"), and ${m.name||''}, residing at ${m.address||'____________________'}, holding Member ID ${m.id||''} and Mobile No. ${m.mobile||'__________'} (hereinafter called the "Prized Subscriber"), a subscriber of Chit Group ${g.name||''} of total Chit Value ${pdfAmt(g.chitAmount)} running for ${g.months||''} months.`, 10.5, false, 10);
+  addWrapped(`WHEREAS an auction for the above Chit Group was conducted on ${a.date}, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of ${pdfAmt(a.discount)}, resulting in a net prize amount payable of ${pdfAmt(a.bidAmount)} and a dividend of ${pdfAmt(a.dividend)} distributable to the remaining non-prized subscribers of the group.`, 10.5, false, 14);
   addWrapped('NOW THIS AGREEMENT WITNESSES AS FOLLOWS:', 11, true, 8);
   [
-    `1. The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of ${inr(a.bidAmount)} (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.`,
-    `2. The Prized Subscriber undertakes to continue paying the future monthly subscription of ${inr(g.installment)} regularly, without default, until completion of the full chit period of ${g.months||''} months.`,
+    `1. The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of ${pdfAmt(a.bidAmount)} (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.`,
+    `2. The Prized Subscriber undertakes to continue paying the future monthly subscription of ${pdfAmt(g.installment)} regularly, without default, until completion of the full chit period of ${g.months||''} months.`,
     `3. The Prized Subscriber shall, at the request of the Foreman, furnish acceptable surety/guarantee for due payment of the remaining subscription amount, as required under the rules of this chit group and the Chit Funds Act, 1982.`,
     `4. In the event of default in payment of future subscriptions, the Foreman shall be entitled to recover the balance amount due, together with interest and applicable charges, through appropriate legal proceedings, and may also proceed against the surety/guarantor furnished.`,
     `5. The Prized Subscriber shall not withdraw from the chit group nor transfer subscriber rights to any third party without prior written consent of the Foreman.`,
@@ -1414,19 +1418,23 @@ function generateReceiptPDF(r){
   const g = DB.groups.find(x=>x.id===r.groupId) || {};
   const m = DB.members.find(x=>x.id===r.memberId) || {};
   let y = 30;
-  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(15,27,45);
   doc.text(String(s.orgName||'').toUpperCase(), 160, y, {align:'center'}); y+=16;
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90,90,90);
   doc.text(String(s.address||''), 160, y, {align:'center'}); y+=12;
-  doc.text('Ph: '+(s.phone||''), 160, y, {align:'center'}); y+=14;
+  doc.text('Ph: '+(s.phone||''), 160, y, {align:'center'}); y+=8;
+  y += 6;
+  doc.setDrawColor(201,152,47); doc.setLineWidth(2); doc.line(20,y,300,y); y += 16;
   doc.setFillColor(15,27,45); doc.rect(20,y,280,20,'F');
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
   doc.text('RECEIPT — ' + (r.type||'Collection'), 160, y+14, {align:'center'});
   doc.setTextColor(0,0,0); y += 36;
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  function line(label,val){
-    doc.setFont('helvetica','normal'); doc.text(String(label), 25, y);
-    doc.setFont('helvetica','bold'); doc.text(String(val), 295, y, {align:'right'});
+  function line(label,val,color){
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.text(String(label), 25, y);
+    if(color) doc.setTextColor(color[0],color[1],color[2]); doc.setFont('helvetica','bold');
+    doc.text(String(val), 295, y, {align:'right'});
+    doc.setTextColor(0,0,0);
     y += 17;
   }
   line('Receipt No', r.receiptNo);
@@ -1436,19 +1444,19 @@ function generateReceiptPDF(r){
   line('Group', g.name||'');
   if(r.month) line('Month', r.month);
   if(r.type==='Auction'){
-    line('Chit Amount', inr(r.chitAmount));
-    line('Bid Amount', inr(r.bidAmount));
-    line('Discount', inr(r.discount));
-    line('Dividend', inr(r.dividend));
+    line('Chit Amount', pdfAmt(r.chitAmount), [15,27,45]);
+    line('Bid Amount', pdfAmt(r.bidAmount), [15,27,45]);
+    line('Discount', pdfAmt(r.discount), [193,68,58]);
+    line('Dividend', pdfAmt(r.dividend), [184,132,42]);
   }
-  line('Amount', inr(r.amount));
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  line('Amount', pdfAmt(r.amount), [31,138,95]);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
   const words = doc.splitTextToSize('In Words: ' + numToWords(r.amount), 270);
   doc.text(words, 25, y); y += words.length*10 + 6;
   doc.setFontSize(10);
   line('Mode', r.mode||'Cash');
   y += 24;
-  doc.setFont('helvetica','italic'); doc.setFontSize(9);
+  doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(90,90,90);
   doc.text('Authorised Sign', 295, y, {align:'right'});
   return doc;
 }
@@ -1572,27 +1580,118 @@ async function shareReportWhatsApp(){
   try{
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    const NAVY=[15,27,45], GOLD=[201,152,47], GREEN=[31,138,95], RED=[193,68,58], MUTED=[110,110,110];
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginX = 14, rightX = pageW - 14;
     let y = 20;
-    doc.setFont('helvetica','bold'); doc.setFontSize(16);
-    doc.text(String(DB.settings.orgName||'') + ' — Report', 14, y); y+=8;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text('Generated: ' + todayStr(), 14, y); y+=14;
-    doc.setFontSize(11);
-    doc.text('Total Collected: ' + inr(totalCollected), 14, y); y+=8;
-    doc.text('Total Pending: ' + inr(totalPending), 14, y); y+=14;
-    doc.setFont('helvetica','bold'); doc.text('Pending Members', 14, y); y+=8; doc.setFont('helvetica','normal'); doc.setFontSize(9);
+
+    // ---- Letterhead ----
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...NAVY);
+    doc.text(String(DB.settings.orgName||'Chit Fund'), marginX, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+    doc.text('BUSINESS REPORT', rightX, y, {align:'right'});
+    y += 6;
+    doc.text(String(DB.settings.address||''), marginX, y);
+    doc.text('Generated: ' + new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}), rightX, y, {align:'right'});
+    y += 6;
+    doc.setDrawColor(...NAVY); doc.setLineWidth(1.2); doc.line(marginX, y, rightX, y);
+    y += 12;
+
+    // ---- Summary stat boxes ----
+    const stats = [
+      { label:'TOTAL COLLECTED', value: pdfAmt(totalCollected), color: GREEN },
+      { label:'TOTAL PENDING', value: pdfAmt(totalPending), color: RED },
+      { label:'PENDING MEMBERS', value: String(DB.collections.filter(c=>c.status==='Pending').length), color: GOLD },
+    ];
+    const boxW = (rightX - marginX - 12) / 3;
+    stats.forEach((st, i) => {
+      const bx = marginX + i*(boxW+6);
+      doc.setFillColor(248,247,243); doc.setDrawColor(225,220,205);
+      doc.roundedRect(bx, y, boxW, 26, 2, 2, 'FD');
+      doc.setDrawColor(...st.color); doc.setLineWidth(2.2);
+      doc.line(bx, y+2, bx, y+24);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+      doc.text(st.label, bx+6, y+9);
+      doc.setFont('helvetica','bold'); doc.setFontSize(12.5); doc.setTextColor(...st.color);
+      doc.text(st.value, bx+6, y+19);
+    });
+    y += 38;
+
+    function sectionHeader(title, color, textColor){
+      doc.setFillColor(...color); doc.rect(marginX, y, rightX-marginX, 9, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...(textColor||[255,255,255]));
+      doc.text(title, marginX+4, y+6.3);
+      y += 9;
+      doc.setDrawColor(225,220,205); doc.setLineWidth(0.3);
+    }
+    function tableRow(cells, widths, opts){
+      opts = opts || {};
+      let x = marginX;
+      doc.setFont('helvetica', opts.bold?'bold':'normal');
+      doc.setFontSize(8.5);
+      cells.forEach((c,i)=>{
+        doc.setTextColor(...(opts.colors && opts.colors[i] ? opts.colors[i] : [30,30,30]));
+        const align = opts.aligns && opts.aligns[i] === 'right' ? 'right' : 'left';
+        const tx = align==='right' ? x+widths[i]-2 : x+2;
+        doc.text(String(c), tx, y+6, {align});
+        x += widths[i];
+      });
+      doc.line(marginX, y+8.5, rightX, y+8.5);
+      y += 8.5;
+      if(y > 275){ doc.addPage(); y = 20; }
+    }
+
+    // ---- Pending Members ----
+    sectionHeader('PENDING MEMBERS REPORT', RED);
+    const pendW = [55, 55, 40, rightX-marginX-150];
+    doc.setFillColor(250,245,244);
+    doc.rect(marginX, y, rightX-marginX, 7, 'F');
+    tableRow(['Member','Group','Amount','Due Date'], pendW, {bold:true, aligns:['left','left','right','left']});
     const pending = DB.collections.filter(c=>c.status==='Pending');
-    if(!pending.length){ doc.text('None — all payments up to date.', 14, y); y+=7; }
-    pending.forEach(c=>{
-      doc.text(`${memberName(c.memberId)} — ${groupName(c.groupId)} — ${inr(c.amount)} — ${c.date}`, 14, y); y+=7;
-      if(y>275){ doc.addPage(); y=20; }
-    });
-    y+=8; doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Auction History', 14, y); y+=8; doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    if(!DB.auctions.length){ doc.text('No auctions conducted yet.', 14, y); y+=7; }
-    DB.auctions.forEach(a=>{
-      doc.text(`${a.date} — ${groupName(a.groupId)} — Winner: ${memberName(a.winnerId)} — Bid: ${inr(a.bidAmount)} — Dividend: ${inr(a.dividend)}`, 14, y); y+=7;
-      if(y>275){ doc.addPage(); y=20; }
-    });
+    if(!pending.length){
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GREEN);
+      doc.text('✓ No pending payments — all clear!', marginX+2, y+7); y += 12;
+    } else {
+      pending.forEach(c=>{
+        tableRow([memberName(c.memberId), groupName(c.groupId), pdfAmt(c.amount), c.date||'—'], pendW,
+          {aligns:['left','left','right','left'], colors:[[30,30,30],[30,30,30],RED,[30,30,30]]});
+      });
+    }
+    y += 10;
+
+    // ---- Auction History ----
+    sectionHeader('AUCTION HISTORY REPORT', GOLD, NAVY);
+    const aucW = [30, 32, 40, 30, 30, (rightX-marginX-162)];
+    doc.setFillColor(250,248,240);
+    doc.rect(marginX, y, rightX-marginX, 7, 'F');
+    tableRow(['Date','Group','Winner','Bid','Dividend','Net Installment'], aucW, {bold:true, aligns:['left','left','left','right','right','right']});
+    if(!DB.auctions.length){
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+      doc.text('No auctions conducted yet.', marginX+2, y+7); y += 12;
+    } else {
+      DB.auctions.forEach(a=>{
+        tableRow([a.date, groupName(a.groupId), memberName(a.winnerId), pdfAmt(a.bidAmount), pdfAmt(a.dividend), pdfAmt(a.netInstallment)], aucW,
+          {aligns:['left','left','left','right','right','right'], colors:[[30,30,30],[30,30,30],[30,30,30],NAVY,GOLD,GREEN]});
+      });
+    }
+    y += 10;
+
+    // ---- Group-wise Summary ----
+    sectionHeader('GROUP-WISE SUMMARY', NAVY);
+    const grpW = [60, 40, 40, (rightX-marginX-140)];
+    doc.setFillColor(245,246,249);
+    doc.rect(marginX, y, rightX-marginX, 7, 'F');
+    tableRow(['Group','Members','Installment','Status'], grpW, {bold:true, aligns:['left','left','right','left']});
+    if(!DB.groups.length){
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
+      doc.text('No groups created yet.', marginX+2, y+7); y += 12;
+    } else {
+      DB.groups.forEach(g=>{
+        tableRow([g.name, `${(g.members||[]).length} / ${g.membersCount}`, pdfAmt(g.installment), g.status], grpW,
+          {aligns:['left','left','right','left'], colors:[[30,30,30],[30,30,30],NAVY, g.status==='Active'?GREEN:MUTED]});
+      });
+    }
+
     const blob = doc.output('blob');
     const file = new File([blob], 'report-' + todayStr() + '.pdf', {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
