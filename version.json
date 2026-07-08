@@ -1,5 +1,5 @@
 {
-  "version": "0.13",
+  "version": "0.14",
   "updatedAt": "2026-07-08",
-  "notes": "Reminders now lists every member assigned to the selected group (not just unpaid ones), with a Paid/Pending status column, so you can see and message the whole group at a glance."
+  "notes": "Added Edit and Delete buttons to Auction History, alongside the existing Agreement button."
 }

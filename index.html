@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.13';
+const APP_VERSION = '0.14';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -1021,7 +1021,9 @@ function saveCollection(andPrint){
 }
 
 /* ================= AUCTIONS ================= */
+let auctionEditId = null;
 function renderAuctions(){
+  auctionEditId = null;
   content.innerHTML = `
   <div class="grid cols-2" style="align-items:start;">
     <div class="card">
@@ -1059,7 +1061,11 @@ function renderAuctions(){
       <tbody>${[...DB.auctions].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(a=>`
         <tr><td>${a.date}</td><td>${esc(groupName(a.groupId))}</td><td>${esc(memberName(a.winnerId))}</td>
         <td>${inr(a.bidAmount)}</td><td>${inr(a.dividend)}</td>
-        <td><button class="icon-btn" onclick="showAgreement('${a.id}')">📄 Agreement</button></td></tr>
+        <td class="row-actions">
+          <button class="icon-btn" onclick="showAgreement('${a.id}')">📄 Agreement</button>
+          <button class="icon-btn" onclick="editAuction('${a.id}')">Edit</button>
+          <button class="icon-btn del" onclick="deleteAuction('${a.id}')">Delete</button>
+        </td></tr>
       `).join('') || `<tr><td colspan="6" class="empty"><span class="big">🔨</span><br>No auctions conducted yet</td></tr>`}
       </tbody></table>
       </div>
@@ -1095,8 +1101,14 @@ function saveAuction(andPrint, andAgreement){
   const discount = g.chitAmount - bid;
   const dividend = Math.round(discount / g.membersCount);
   const net = g.installment - dividend;
-  const rec = { id:uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value };
-  DB.auctions.push(rec); save(); toast('Auction recorded');
+  const rec = { id: auctionEditId || uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value };
+  if(auctionEditId){
+    const i = DB.auctions.findIndex(a=>a.id===auctionEditId);
+    DB.auctions[i] = rec; auctionEditId = null; toast('Auction updated');
+  } else {
+    DB.auctions.push(rec); toast('Auction recorded');
+  }
+  save();
   if(andAgreement){
     showAgreement(rec.id);
     return;
@@ -1106,6 +1118,22 @@ function saveAuction(andPrint, andAgreement){
     goto('receipts'); renderReceiptPreview(receipt); return;
   }
   renderAuctions();
+}
+function editAuction(id){
+  const a = DB.auctions.find(x=>x.id===id); if(!a) return;
+  auctionEditId = id;
+  document.getElementById('aGroup').value = a.groupId;
+  onAuctionCalc();
+  document.getElementById('aDate').value = a.date;
+  document.getElementById('aWinner').value = a.winnerId;
+  document.getElementById('aBid').value = a.bidAmount;
+  onAuctionCalc();
+  window.scrollTo(0,0);
+}
+function deleteAuction(id){
+  askConfirm('Delete this auction record? This cannot be undone.', ()=>{
+    DB.auctions = DB.auctions.filter(a=>a.id!==id); save(); toast('Auction deleted'); renderAuctions();
+  });
 }
 
 /* ================= AUCTION AGREEMENT LETTER ================= */
