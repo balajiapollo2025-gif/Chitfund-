@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.11';
+const APP_VERSION = '0.12';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -908,7 +908,7 @@ function renderCollections(){
         <div class="field"><label>Member</label>
           <select id="cMember"><option value="">Select Member</option></select>
         </div>
-        <div class="field"><label>Month</label><input id="cMonth" type="month" value="${todayStr().slice(0,7)}"></div>
+        <div class="field"><label>Month</label><input id="cMonth" type="month" value="${todayStr().slice(0,7)}" onchange="updateCollAmount()"></div>
         <div class="field"><label>Amount (₹)</label><input id="cAmount" type="number" placeholder="25000"></div>
         <div class="field"><label>Payment Date</label><input id="cDate" type="date" value="${todayStr()}"></div>
         <div class="field"><label>Status</label><select id="cStatus"><option>Paid</option><option>Pending</option></select></div>
@@ -937,9 +937,29 @@ function renderCollections(){
 function onCollGroupChange(){
   const gid = document.getElementById('cGroup').value;
   const sel = document.getElementById('cMember');
-  const g = DB.groups.find(x=>x.id===gid);
   sel.innerHTML = '<option value="">Select Member</option>' + DB.members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  if(g) document.getElementById('cAmount').value = g.installment;
+  updateCollAmount();
+}
+// Same adjustment logic as Reminders: if the group had an auction in the
+// calendar month BEFORE the selected due month, use that auction's net
+// installment (installment minus dividend share) instead of the plain
+// group installment.
+function getAdjustedInstallmentForMonth(g, monthKey){
+  if(!g) return 0;
+  if(!monthKey) return g.installment;
+  const [y, mo] = monthKey.split('-').map(Number);
+  const prevDate = new Date(y, mo-2, 1); // mo is 1-indexed; mo-2 -> previous month
+  const prevKey = prevDate.toISOString().slice(0,7);
+  const auctionsPrevMonth = DB.auctions.filter(a => a.groupId===g.id && a.date && a.date.slice(0,7)===prevKey);
+  if(!auctionsPrevMonth.length) return g.installment;
+  const latest = [...auctionsPrevMonth].sort((a,b)=> b.date.localeCompare(a.date))[0];
+  return latest.netInstallment;
+}
+function updateCollAmount(){
+  const gid = document.getElementById('cGroup').value;
+  const g = DB.groups.find(x=>x.id===gid);
+  const monthVal = document.getElementById('cMonth').value;
+  if(g) document.getElementById('cAmount').value = getAdjustedInstallmentForMonth(g, monthVal);
 }
 function fillCollTable(list){
   document.getElementById('collTbody').innerHTML = list.map(c=>`
