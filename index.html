@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.10';
+const APP_VERSION = '0.11';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -1242,6 +1242,24 @@ function getGroupAdjustedDue(g){
   const latest = [...auctionsThisMonth].sort((a,b)=> b.date.localeCompare(a.date))[0];
   return { amount: latest.netInstallment, auction: latest };
 }
+// Converts 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11/12/13 -> "th", etc.
+function ordinal(n){
+  const rem100 = n % 100;
+  if(rem100 >= 11 && rem100 <= 13) return n + 'th';
+  switch(n % 10){
+    case 1: return n + 'st';
+    case 2: return n + 'nd';
+    case 3: return n + 'rd';
+    default: return n + 'th';
+  }
+}
+// Which installment number (chit number) is due next: count of auctions
+// already conducted for this group so far, plus one. e.g. if 1 auction has
+// happened, the upcoming due month is the group's 2nd installment.
+function getInstallmentNumber(g){
+  const count = DB.auctions.filter(a => a.groupId === g.id).length;
+  return count + 1;
+}
 let reminderGroupFilter = 'all';
 function renderReminders(){
   const nm = nextMonthInfo();
@@ -1249,11 +1267,12 @@ function renderReminders(){
   DB.groups.filter(g=>g.status==='Active').forEach(g=>{
     if(reminderGroupFilter!=='all' && g.id!==reminderGroupFilter) return;
     const due = getGroupAdjustedDue(g);
+    const instNum = getInstallmentNumber(g);
     (g.members||[]).forEach(mid=>{
       const m = DB.members.find(x=>x.id===mid);
       if(!m) return;
       const paid = DB.collections.some(c=>c.groupId===g.id && c.memberId===mid && c.month===nm.key && c.status==='Paid');
-      if(!paid) rows.push({ group:g, member:m, amount:due.amount, adjusted: !!due.auction, auction: due.auction });
+      if(!paid) rows.push({ group:g, member:m, amount:due.amount, adjusted: !!due.auction, auction: due.auction, instNum });
     });
   });
   const anyGroupHasMembers = DB.groups.some(g=>(g.members||[]).length>0);
@@ -1273,22 +1292,25 @@ function renderReminders(){
     </div>
     ${!anyGroupHasMembers ? `<div class="calc-box" style="margin-bottom:14px;">No members are assigned to any group yet. Go to <b>Groups → Edit</b> and tick the members belonging to each group — reminders are calculated from that list.</div>` : ''}
     <p style="color:var(--muted);font-size:12.5px;margin-top:-4px;">Tap "Send Reminder" to open WhatsApp with a ready-made message for that member. This has to be sent one at a time — WhatsApp does not allow silent bulk sending. Amounts marked <span class="pill pending" style="padding:1px 8px;">Auction Adjusted</span> already include this month's discount dividend.</p>
-    <table><thead><tr><th>Member</th><th>Mobile</th><th>Group</th><th>Due Amount</th><th></th></tr></thead>
+    <table><thead><tr><th>Member</th><th>Mobile</th><th>Group</th><th>Installment #</th><th>Due Amount</th><th></th></tr></thead>
     <tbody>${rows.map(r=>`
       <tr><td>${esc(r.member.name)}</td><td>${esc(r.member.mobile||'—')}</td><td>${esc(r.group.name)}</td>
+      <td>${ordinal(r.instNum)} of ${r.group.months||'—'}</td>
       <td>${inr(r.amount)} ${r.adjusted?'<span class="pill pending" style="margin-left:4px;">Auction Adjusted</span>':''}</td>
       <td><button class="icon-btn" onclick="sendDueReminder('${r.member.id}','${r.group.id}')" ${!r.member.mobile?'disabled title="No mobile number saved"':''}>📲 Send Reminder</button></td></tr>
-    `).join('') || `<tr><td colspan="5" class="empty"><span class="big">🎉</span><br>No pending reminders — everyone due next month is already marked Paid</td></tr>`}
+    `).join('') || `<tr><td colspan="6" class="empty"><span class="big">🎉</span><br>No pending reminders — everyone due next month is already marked Paid</td></tr>`}
     </tbody></table>
   </div>`;
 }
 function buildReminderMessage(m, g, due){
   const nm = nextMonthInfo();
+  const instNum = getInstallmentNumber(g);
+  const instLabel = `${ordinal(instNum)} installment (చీటి)${g.months ? ' of ' + g.months : ''}`;
   if(due.auction){
     const a = due.auction;
-    return `Dear ${m.name},\n\nYour chit installment for ${g.name} due on ${nm.label} has been adjusted after this month's auction (${a.date}):\n\nRegular Installment: ${inr(g.installment)}\nYour Discount Share: -${inr(g.installment - due.amount)}\nAmount to Pay: ${inr(due.amount)}\n\nKindly pay before the due date.\n\n— ${DB.settings.orgName}`;
+    return `Dear ${m.name},\n\nThis is your ${instLabel} for ${g.name}, due on ${nm.label}. The amount has been adjusted after this month's auction (${a.date}):\n\nRegular Installment: ${inr(g.installment)}\nYour Discount Share: -${inr(g.installment - due.amount)}\nAmount to Pay: ${inr(due.amount)}\n\nKindly pay before the due date.\n\n— ${DB.settings.orgName}`;
   }
-  return `Dear ${m.name},\n\nThis is a reminder that your chit installment of ${inr(due.amount)} for ${g.name} is due for ${nm.label}.\n\nKindly pay before the due date to avoid inconvenience.\n\n— ${DB.settings.orgName}`;
+  return `Dear ${m.name},\n\nThis is a reminder for your ${instLabel} of ${inr(due.amount)} for ${g.name}, due on ${nm.label}.\n\nKindly pay before the due date to avoid inconvenience.\n\n— ${DB.settings.orgName}`;
 }
 function sendDueReminder(memberId, groupId){
   const m = DB.members.find(x=>x.id===memberId);

@@ -1,5 +1,5 @@
 {
-  "version": "0.10",
-  "updatedAt": "2026-07-07",
-  "notes": "Fixed the stray '1' appearing before amounts in the Agreement Letter PDF (jsPDF's built-in font doesn't support the Rupee symbol, now shows 'Rs.' inside PDFs). The colorful Report PDF and Receipt PDF already used the correct format."
+  "version": "0.11",
+  "updatedAt": "2026-07-08",
+  "notes": "WhatsApp due reminders now mention which installment number (chit) is due, e.g. '2nd installment of 20', calculated automatically from how many auctions the group has had so far. Also shown as a column on the Reminders screen."
 }
