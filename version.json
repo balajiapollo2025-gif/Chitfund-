@@ -1,5 +1,5 @@
 {
-  "version": "0.14",
+  "version": "0.15",
   "updatedAt": "2026-07-08",
-  "notes": "Added Edit and Delete buttons to Auction History, alongside the existing Agreement button."
+  "notes": "Auction entry now captures winner's Aadhaar Number and Bank/Cheque details (Bank Name, Account No., IFSC, Cheque No.), included automatically in the Agreement Letter (both on-screen and PDF). Sidebar footer now shows developer credit: Software Developed by Suresh Digitals, 9347383483."
 }
