@@ -5,7 +5,7 @@
 // IMPORTANT: bump CACHE_NAME (e.g. v6, v7...) every time you publish an
 // update, otherwise returning users keep seeing the old cached version.
 
-const CACHE_NAME = 'chit-funds-cache-v13';
+const CACHE_NAME = 'chit-funds-cache-v14';
 const ASSETS = [
   './',
   './index.html',

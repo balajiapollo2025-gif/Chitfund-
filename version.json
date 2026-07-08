@@ -1,5 +1,5 @@
 {
-  "version": "0.12",
+  "version": "0.13",
   "updatedAt": "2026-07-08",
-  "notes": "Collection screen now auto-fills the correct amount for a group/month automatically, using the same auction-discount adjustment shown in Reminders (e.g. Rs.16,400 instead of the plain Rs.20,000 the month after a discount auction)."
+  "notes": "Reminders now lists every member assigned to the selected group (not just unpaid ones), with a Paid/Pending status column, so you can see and message the whole group at a glance."
 }
