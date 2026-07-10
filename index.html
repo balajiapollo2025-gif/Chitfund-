@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.15';
+const APP_VERSION = '0.16';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -1042,17 +1042,6 @@ function renderAuctions(){
           ${DB.members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
         </div>
         <div class="field full"><label>Bid Amount (₹) <span class="te">బిడ్ మొత్తం</span></label><input id="aBid" type="number" oninput="onAuctionCalc()" placeholder="450000"></div>
-        <div class="field full" style="border-top:1px dashed var(--line);padding-top:12px;margin-top:4px;">
-          <label style="color:var(--navy);">Winner KYC &amp; Bank Details <span class="te">(అగ్రిమెంట్ లెటర్ కోసం)</span></label>
-        </div>
-        <div class="field"><label>Aadhaar Number</label><input id="aAadhaar" placeholder="XXXX XXXX XXXX"></div>
-        <div class="field"><label>Bank Name</label><input id="aBankName" placeholder="e.g. SBI, Kurnool"></div>
-        <div class="field"><label>Account Number</label><input id="aAccNo" placeholder="Bank account number"></div>
-        <div class="field"><label>IFSC Code</label><input id="aIfsc" placeholder="e.g. SBIN0001234"></div>
-        <div class="field full"><label>Cheque Number</label><input id="aChequeNo" placeholder="Cheque number given for prize amount"></div>
-        <div class="field full"><label style="color:var(--amber);">Winner's KYC — for Agreement Letter <span class="te">వినర్ గుర్తింపు వివరాలు</span></label></div>
-        <div class="field"><label>Aadhaar Number</label><input id="aAadhaar" placeholder="1234 5678 9012" maxlength="14"></div>
-        <div class="field"><label>Bank Cheque Details</label><input id="aChequeDetails" placeholder="Bank name, Branch, Cheque No."></div>
       </div>
       <div class="calc-box" id="auctionCalc">
         <div class="row">Discount = Chit Amount − Bid Amount</div>
@@ -1112,13 +1101,7 @@ function saveAuction(andPrint, andAgreement){
   const discount = g.chitAmount - bid;
   const dividend = Math.round(discount / g.membersCount);
   const net = g.installment - dividend;
-  const rec = { id: auctionEditId || uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value,
-    aadhaar: document.getElementById('aAadhaar').value.trim(),
-    bankName: document.getElementById('aBankName').value.trim(),
-    accountNumber: document.getElementById('aAccNo').value.trim(),
-    ifsc: document.getElementById('aIfsc').value.trim(),
-    chequeNo: document.getElementById('aChequeNo').value.trim()
-  };
+  const rec = { id: auctionEditId || uid('A'), groupId, winnerId, bidAmount:bid, discount, dividend, netInstallment:net, date:document.getElementById('aDate').value };
   if(auctionEditId){
     const i = DB.auctions.findIndex(a=>a.id===auctionEditId);
     DB.auctions[i] = rec; auctionEditId = null; toast('Auction updated');
@@ -1144,11 +1127,6 @@ function editAuction(id){
   document.getElementById('aDate').value = a.date;
   document.getElementById('aWinner').value = a.winnerId;
   document.getElementById('aBid').value = a.bidAmount;
-  document.getElementById('aAadhaar').value = a.aadhaar||'';
-  document.getElementById('aBankName').value = a.bankName||'';
-  document.getElementById('aAccNo').value = a.accountNumber||'';
-  document.getElementById('aIfsc').value = a.ifsc||'';
-  document.getElementById('aChequeNo').value = a.chequeNo||'';
   onAuctionCalc();
   window.scrollTo(0,0);
 }
@@ -1181,15 +1159,6 @@ function showAgreement(auctionId){
       <p style="font-size:13px;line-height:1.8;">
         <b>WHEREAS</b> an auction for the above Chit Group was conducted on <b>${a.date}</b>, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of <b>${inr(a.discount)}</b>, resulting in a net prize amount payable of <b>${inr(a.bidAmount)}</b> and a dividend of <b>${inr(a.dividend)}</b> distributable to the remaining non-prized subscribers of the group.
       </p>
-      ${(a.aadhaar || a.bankName || a.accountNumber || a.ifsc || a.chequeNo) ? `
-      <div style="background:#faf9f5;border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:6px 0 14px;font-size:12.5px;line-height:1.7;">
-        <b>Prized Subscriber — KYC &amp; Payment Details:</b><br>
-        ${a.aadhaar ? `Aadhaar No.: <b>${esc(a.aadhaar)}</b><br>` : ''}
-        ${a.bankName ? `Bank Name: <b>${esc(a.bankName)}</b><br>` : ''}
-        ${a.accountNumber ? `Account No.: <b>${esc(a.accountNumber)}</b><br>` : ''}
-        ${a.ifsc ? `IFSC Code: <b>${esc(a.ifsc)}</b><br>` : ''}
-        ${a.chequeNo ? `Cheque No.: <b>${esc(a.chequeNo)}</b>` : ''}
-      </div>` : ''}
       <p style="font-size:13px;font-weight:700;margin-top:16px;margin-bottom:4px;">NOW THIS AGREEMENT WITNESSES AS FOLLOWS:</p>
       <ol style="font-size:12.5px;line-height:1.9;padding-left:20px;">
         <li>The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of <b>${inr(a.bidAmount)}</b> (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.</li>
@@ -1247,16 +1216,6 @@ function generateAgreementPDF(a){
 
   addWrapped(`This Agreement is made on ${a.date}, between ${s.orgName} (hereinafter called the "Foreman/Company"), and ${m.name||''}, residing at ${m.address||'____________________'}, holding Member ID ${m.id||''} and Mobile No. ${m.mobile||'__________'} (hereinafter called the "Prized Subscriber"), a subscriber of Chit Group ${g.name||''} of total Chit Value ${pdfAmt(g.chitAmount)} running for ${g.months||''} months.`, 10.5, false, 10);
   addWrapped(`WHEREAS an auction for the above Chit Group was conducted on ${a.date}, and the Prized Subscriber has been declared the successful bidder (winner) of this month's auction for a bid/discount amount of ${pdfAmt(a.discount)}, resulting in a net prize amount payable of ${pdfAmt(a.bidAmount)} and a dividend of ${pdfAmt(a.dividend)} distributable to the remaining non-prized subscribers of the group.`, 10.5, false, 14);
-  if(a.aadhaar || a.bankName || a.accountNumber || a.ifsc || a.chequeNo){
-    addWrapped('PRIZED SUBSCRIBER — KYC & PAYMENT DETAILS:', 10, true, 4);
-    const kycLines = [];
-    if(a.aadhaar) kycLines.push('Aadhaar No.: ' + a.aadhaar);
-    if(a.bankName) kycLines.push('Bank Name: ' + a.bankName);
-    if(a.accountNumber) kycLines.push('Account No.: ' + a.accountNumber);
-    if(a.ifsc) kycLines.push('IFSC Code: ' + a.ifsc);
-    if(a.chequeNo) kycLines.push('Cheque No.: ' + a.chequeNo);
-    addWrapped(kycLines.join('   |   '), 9.5, false, 14);
-  }
   addWrapped('NOW THIS AGREEMENT WITNESSES AS FOLLOWS:', 11, true, 8);
   [
     `1. The Foreman has this day paid, and the Prized Subscriber acknowledges having received, the sum of ${pdfAmt(a.bidAmount)} (Rupees ${numToWords(a.bidAmount)}) as the prize amount of this month's chit auction, subject to the terms below.`,

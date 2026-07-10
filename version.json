@@ -1,5 +1,5 @@
 {
-  "version": "0.15",
+  "version": "0.16",
   "updatedAt": "2026-07-08",
-  "notes": "Auction entry now captures winner's Aadhaar Number and Bank/Cheque details (Bank Name, Account No., IFSC, Cheque No.), included automatically in the Agreement Letter (both on-screen and PDF). Sidebar footer now shows developer credit: Software Developed by Suresh Digitals, 9347383483."
+  "notes": "Removed the Aadhaar/Bank Cheque Details section from Auction Entry (not needed). Confirmed: Collections screen already auto-fills the correct auction-adjusted due amount when you select Group + Month, matching what Reminders shows -- no manual entry needed."
 }
