@@ -1,5 +1,5 @@
 {
-  "version": "0.16",
-  "updatedAt": "2026-07-08",
-  "notes": "Removed the Aadhaar/Bank Cheque Details section from Auction Entry (not needed). Confirmed: Collections screen already auto-fills the correct auction-adjusted due amount when you select Group + Month, matching what Reminders shows -- no manual entry needed."
+  "version": "0.17",
+  "updatedAt": "2026-07-14",
+  "notes": "Removed the 5-day grace period. The app now locks immediately (hard lock, Access/License expired screen) the moment a license's validity date passes, instead of continuing to work for a few extra days. Also enforced mid-session, not just at next app open."
 }

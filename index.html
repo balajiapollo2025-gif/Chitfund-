@@ -293,7 +293,7 @@ tr:hover td{background:#fbfaf6;}
    All data persisted to localStorage. No server / internet needed.
 ========================================================= */
 
-const APP_VERSION = '0.16';
+const APP_VERSION = '0.17';
 
 /* ---------------- Licensing (paste your Public Key from the Mother App below) ---------------- */
 // Leave this as null while you are setting up — the app runs unrestricted.
@@ -302,7 +302,6 @@ const APP_VERSION = '0.16';
 // using this deployed app.
 const PUBLIC_KEY_JWK = {"key_ops":["verify"],"ext":true,"kty":"EC","x":"JKNrQ6aRpGtHq3TAXgnmR3JBO1S2TMPVKBl1JJ6UPK4","y":"NrfGihBM9cH-okWZDwRaMSvOxWPRKKGEh2mw3lBBv20","crv":"P-256"};
 const LICENSE_STORAGE_KEY = 'chitSoftwareLicense_v1';
-const LICENSE_GRACE_DAYS = 5;
 const SELLER_CONTACT = '9876543210'; // <-- put YOUR (the seller's) WhatsApp number here for renewal contact
 const DB_KEY = 'chitSoftwareDB_v1';
 const AUTO_BACKUP_KEY = 'chitSoftwareAutoBackups_v1';
@@ -402,7 +401,6 @@ function licenseStatus(){
   const expiry = new Date(lic.expires);
   const daysLeft = Math.ceil((expiry - today) / 86400000);
   if(daysLeft >= 0) return { state:'active', daysLeft, lic };
-  if(daysLeft >= -LICENSE_GRACE_DAYS) return { state:'grace', daysLeft, lic };
   return { state:'expired', daysLeft, lic };
 }
 async function activateLicenseKey(){
@@ -423,10 +421,6 @@ function showLicenseBadge(status){
     el.style.display = 'inline-block';
     el.className = 'pill ' + (status.daysLeft <= 30 ? 'pending' : 'paid');
     el.textContent = '🔑 ' + status.daysLeft + 'd left';
-  } else if(status.state === 'grace'){
-    el.style.display = 'inline-block';
-    el.className = 'pill pending';
-    el.textContent = '⚠ Renew: ' + (LICENSE_GRACE_DAYS + status.daysLeft) + 'd grace';
   } else {
     el.style.display = 'none';
   }
@@ -449,7 +443,6 @@ function renderLicense(){
       </div>
       <p style="font-size:13px;">${
         status.state==='active' ? `✅ ${status.daysLeft} day(s) remaining` :
-        status.state==='grace' ? `⚠ Expired — ${LICENSE_GRACE_DAYS + status.daysLeft} grace day(s) left. Please renew soon.` :
         '❌ License expired. Please enter a renewal key below to continue.'
       }</p>
     ` : `<p style="color:var(--muted);font-size:13px;">No license activated yet. Paste the key your provider sent you below.</p>`}
@@ -546,7 +539,7 @@ async function checkLicenseAndBoot(){
     renderRevokedScreen(cid);
     return;
   }
-  if(status.state === 'active' || status.state === 'grace'){
+  if(status.state === 'active'){
     document.getElementById('licenseGate').style.display = 'none';
     document.getElementById('sidebar').style.display = '';
     document.getElementById('main').style.display = '';
@@ -1935,20 +1928,24 @@ let isCurrentlyRevokedLocked = false;
 async function recheckRevocation(){
   if(!PUBLIC_KEY_JWK) return;
   const status = licenseStatus();
-  if(status.state === 'active' || status.state === 'grace'){
-    const cid = status.lic ? status.lic.cid : null;
-    const revoked = await isCustomerRevoked(cid);
-    if(revoked){
-      isCurrentlyRevokedLocked = true;
-      document.getElementById('sidebar').style.display = 'none';
-      document.getElementById('main').style.display = 'none';
-      renderRevokedScreen(cid);
-    } else if(isCurrentlyRevokedLocked){
-      // Was locked, now reactivated — restore access automatically.
-      isCurrentlyRevokedLocked = false;
-      toast('✅ Access restored');
-      checkLicenseAndBoot();
-    }
+  if(status.state !== 'active'){
+    // License validity itself has ended since the last check — lock
+    // immediately (no grace period), without waiting for a full reload.
+    if(!isCurrentlyRevokedLocked){ checkLicenseAndBoot(); }
+    return;
+  }
+  const cid = status.lic ? status.lic.cid : null;
+  const revoked = await isCustomerRevoked(cid);
+  if(revoked){
+    isCurrentlyRevokedLocked = true;
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').style.display = 'none';
+    renderRevokedScreen(cid);
+  } else if(isCurrentlyRevokedLocked){
+    // Was locked, now reactivated — restore access automatically.
+    isCurrentlyRevokedLocked = false;
+    toast('✅ Access restored');
+    checkLicenseAndBoot();
   }
 }
 setInterval(recheckRevocation, 2*60*1000);
